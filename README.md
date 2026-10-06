@@ -583,6 +583,25 @@ sala de pesquisa (5–8 mm acima do piso refletor), os textos no chão e a faixa
 borda das mesas. Também saiu o `AdaptiveDpr`/`regress`, que reduzia a resolução durante o
 movimento da câmera e aparecia como piscada de nitidez.
 
+## 9.14 Scripts do Windows: só ASCII (senão o PowerShell quebra)
+
+O `start.ps1` quebrava com *"Token '}' inesperado"* e *"A cadeia de caracteres não tem o
+terminador"*. Causa: o arquivo estava em **UTF-8 sem BOM** e o **Windows PowerShell 5.1
+lê `.ps1` como ANSI (cp1252)**. Os caracteres de desenho das caixas de comentário
+(`──`) viravam `â”€`, e o byte `0x94` do cp1252 é a aspa tipográfica `”` — que o parser
+trata como início de string. A partir dali tudo desandava.
+
+Regra do projeto (gravada no `.gitattributes`):
+
+* `scripts/*.ps1`, `*.cmd` e `*.bat` são **ASCII puro** — nada de acento, `─`, `▸`, `✓`,
+  `…`; use `-`, `>`, `[ok]`, `...`;
+* finais de linha **CRLF**;
+* `start.ps1` vai com **BOM UTF-8** (é executado com `-File`); `install.ps1` vai **sem
+  BOM** (é executado via `irm | iex`, e o BOM viraria o primeiro caractere da string).
+
+Para pegar a correção na sua máquina, rode o atualizador de novo:
+`iex (irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1)`
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:
