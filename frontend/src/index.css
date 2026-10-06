@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #04060a;
+  color: #dbe4ef;
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2b3a;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/[0.06] bg-[#070b11]/80 backdrop-blur-xl shadow-panel;
+  }
+  .panel-title {
+    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400;
+  }
+  .chip {
+    @apply rounded border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider;
+  }
+  .btn {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-200 transition hover:border-white/25 hover:bg-white/[0.09] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-accent {
+    @apply border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:border-emerald-300/70 hover:bg-emerald-400/20;
+  }
+  .btn-danger {
+    @apply border-rose-400/40 bg-rose-500/10 text-rose-300 hover:border-rose-300/70 hover:bg-rose-500/20;
+  }
+  .field {
+    @apply w-full rounded-md border border-white/10 bg-black/40 px-2.5 py-1.5 text-[12px] text-slate-100 outline-none focus:border-emerald-400/50;
+  }
+  .mono {
+    @apply font-mono tabular-nums;
+  }
+}
+
+.scanline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+@keyframes pulseSoft {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pulse-soft {
+  animation: pulseSoft 1.8s ease-in-out infinite;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.slide-in {
+  animation: slideIn 0.25s ease-out;
+}
