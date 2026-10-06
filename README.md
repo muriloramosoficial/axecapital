@@ -163,7 +163,34 @@ Já disponível: `MT5Broker` (execução real na conta logada).
 
 ---
 
-## 4. MetaTrader 5 (conta já logada)
+## 4. “Não tenho MetaTrader 5 nesta máquina” — e agora?
+
+**Nada muda para você: o escritório roda inteiro sem MT5.** A ponte é 100% opcional.
+
+| Com MT5 + ponte | Sem MT5 (padrão) |
+|---|---|
+| Ativos: os da sua conta (inclusive `EURUSD.m`) | Ativos: universo simulado (28 instrumentos: majors, ouro, prata, petróleo, índices, DXY, US10Y, VIX, BTC) |
+| Cotações: do terminal, sincronizadas no motor | Cotações: motor estocástico com regimes, choques e notícias |
+| Execução: ordens reais na conta logada | Execução: paper desk interno, saldo fictício de $100.000 |
+| HUD mostra `MT5 LIVE` | HUD mostra `SIMULATION` |
+
+Continuam funcionando **exatamente igual**: escritório 3D, agentes, contratação, pipeline de análise,
+Risk Manager, trade journal, notícias, câmera cinematográfica, widgets da TradingView, cérebro de
+aprendizado e a IA local (LM Studio também é opcional — sem ela os agentes usam as heurísticas).
+
+Detalhes práticos:
+
+* o instalador avisa `sem Python: a ponte MT5 não será iniciada` e segue normalmente;
+* o pacote `MetaTrader5` só existe no Windows — no `requirements.txt` ele já está marcado com
+  `sys_platform == "win32"`, então em Linux/macOS a instalação não quebra;
+* na primeira abertura aparece um aviso explicando o modo simulação, e em **⚙ Setup → MetaTrader 5**
+  o botão *Send to MT5* fica desabilitado enquanto a ponte estiver offline (impossível mandar ordem sem querer);
+* quando você instalar o MT5 depois, basta abrir o terminal logado, rodar `python mt5-bridge/bridge.py`
+  e clicar em *Re-check terminal* — os ativos da conta aparecem na hora no “Hire agent”, sem reconfigurar nada.
+
+---
+
+## 5. MetaTrader 5 (conta já logada)
 
 A ponte **nunca pede login, senha ou servidor**. Ela faz `mt5.initialize()`,
 anexa ao terminal aberto e expõe:
@@ -188,7 +215,7 @@ acompanham o mercado de verdade mesmo antes de qualquer execução.
 
 ---
 
-## 5. IA dos agentes (LM Studio / provider personalizado)
+## 6. IA dos agentes (LM Studio / provider personalizado)
 
 **⚙ Setup → AI provider**:
 
@@ -205,7 +232,7 @@ continua operando com as heurísticas determinísticas — nada trava.
 
 ---
 
-## 6. Eventos do pipeline
+## 7. Eventos do pipeline
 
 `MARKET_MOVEMENT` → `OPPORTUNITY_DETECTED` → `TECHNICAL_ANALYSIS_STARTED/COMPLETED`
 → `MACRO_ANALYSIS_*` → `QUANT_ANALYSIS_*` → `RISK_REVIEW_STARTED`
@@ -221,7 +248,7 @@ Regimes de mercado: `TRENDING · RANGING · HIGH_VOLATILITY · LOW_VOLATILITY ·
 
 ---
 
-## 7. Regra de uma entrada **simultânea** por agente
+## 8. Regra de uma entrada **simultânea** por agente
 
 * Cada **Market Scout** é dono do seu instrumento. Ao detectar um setup, ele leva a ideia pelo pipeline e, se aprovada, **a posição fica no nome dele** (`position.agentId`).
 * **Máximo de 1 posição aberta por vez, por agente.** Enquanto ela estiver viva ele não abre outra (`maybeScan` bloqueia por `agentId` e por `symbol`); assim que ela fecha, o slot é liberado e, depois de um respiro curto (~30–120s de tempo simulado), ele volta a caçar e pode operar quantas vezes quiser no dia.
@@ -242,7 +269,7 @@ exatamente como você deixou. Resultados simulados de P&L nunca são persistidos
 
 ---
 
-## 8. Cérebro de aprendizado de cada agente
+## 9. Cérebro de aprendizado de cada agente
 
 Cada agente tem uma **memória própria e explicável** (`backend/src/agents/learning.ts`). Nada de caixa preta:
 todo trade fechado vira uma **lição**.
@@ -278,7 +305,7 @@ de todos os cérebros (amostras, win rate, expectancy, P&L aprendido).
 
 ---
 
-## 9. Próximos passos sugeridos
+## 10. Próximos passos sugeridos
 
 1. Estratégias plugáveis por agente (`Strategy` já é uma interface) + backtesting sobre as lições gravadas.
 2. Persistência do journal (SQLite) e relatórios por agente.

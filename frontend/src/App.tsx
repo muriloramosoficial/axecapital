@@ -9,6 +9,7 @@ import { AgentInspector, MarketRail, NewsPanel } from './ui/SidePanels';
 import { HireAgentModal } from './ui/HireAgentModal';
 import { SettingsModal } from './ui/SettingsModal';
 import { BrainModal } from './ui/BrainModal';
+import { ModeNotice } from './ui/ModeNotice';
 import { TradingViewWidget } from './three/TradingViewScreen';
 import { connect, useStore } from './state/store';
 
@@ -82,6 +83,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <ModeNotice onOpenSettings={() => setSettings(true)} />
 
       {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}
       {hire && <HireAgentModal onClose={() => setHire(false)} />}

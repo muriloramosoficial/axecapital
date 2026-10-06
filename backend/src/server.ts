@@ -46,7 +46,11 @@ api.get('/mt5/status', async (_req, res) => {
     res.json({ ...status, bridgeUrl: sim.mt5Broker.bridge.baseUrl });
   } catch (err: any) {
     sim.mt5Connected = false;
-    res.json({ connected: false, error: err?.message ?? 'bridge offline', bridgeUrl: sim.mt5Broker.bridge.baseUrl });
+    res.json({
+      connected: false,
+      error: `MetaTrader 5 bridge não encontrada em ${sim.mt5Broker.bridge.baseUrl} — o escritório segue rodando em simulação (${err?.message ?? 'offline'}).`,
+      bridgeUrl: sim.mt5Broker.bridge.baseUrl,
+    });
   }
 });
 
