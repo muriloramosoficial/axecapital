@@ -13,6 +13,9 @@ export const api = {
   snapshot: () => json<any>('/api/snapshot'),
   symbols: () => json<{ source: string; symbols: SymbolInfo[] }>('/api/symbols'),
   mt5Status: () => json<any>('/api/mt5/status'),
+  mt5Connect: () => json<{ ok: boolean; mode: string; checks: { id: string; label: string; ok: boolean; detail: string }[]; account: any; bridgeUrl: string }>('/api/mt5/connect', { method: 'POST' }),
+  mt5Disconnect: () => json<any>('/api/mt5/disconnect', { method: 'POST' }),
+  aiForAll: (useAI: boolean) => json<any>('/api/agents/ai-all', { method: 'POST', body: JSON.stringify({ useAI }) }),
   setBridgeUrl: (url: string) => json<any>('/api/mt5/bridge-url', { method: 'POST', body: JSON.stringify({ url }) }),
   hire: (body: { role: AgentRole; name?: string; symbol?: string; deskId?: string; aggressiveness?: number; maxRiskPct?: number; useAI?: boolean }) =>
     json<Agent>('/api/agents', { method: 'POST', body: JSON.stringify(body) }),

@@ -63,6 +63,57 @@ api.post('/mt5/bridge-url', (req, res) => {
   res.json({ bridgeUrl: sim.mt5Broker.bridge.baseUrl });
 });
 
+/**
+ * Guided "Connect MT5" flow: runs every check the desk needs before it is
+ * allowed to route real orders, and only then flips the execution mode.
+ */
+api.post('/mt5/connect', async (_req, res) => {
+  const checks: { id: string; label: string; ok: boolean; detail: string }[] = [];
+  const add = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, ok, detail });
+  let account: any = null;
+
+  let status: any = null;
+  try {
+    status = await sim.mt5Broker.bridge.status();
+    add('bridge', 'Ponte local respondendo', true, sim.mt5Broker.bridge.baseUrl);
+  } catch (err: any) {
+    add('bridge', 'Ponte local respondendo', false, `não encontrada em ${sim.mt5Broker.bridge.baseUrl} — rode: python mt5-bridge/bridge.py`);
+  }
+
+  if (status) {
+    add('package', 'Pacote MetaTrader5 (Windows)', !String(status.error ?? '').includes('package'), status.error && String(status.error).includes('package') ? String(status.error) : 'ok');
+    add('terminal', 'Terminal MetaTrader 5 aberto', !!status.connected, status.connected ? (status.terminal?.name ?? 'terminal ativo') : String(status.error ?? 'terminal não inicializado'));
+    account = status.account ?? null;
+    add('account', 'Conta logada no terminal', !!account, account ? `${account.login} · ${account.name} · ${account.server}` : 'nenhuma conta logada — faça login no MT5');
+    const tradeAllowed = status.terminal?.trade_allowed ?? account?.trade_allowed;
+    add('autotrading', 'AutoTrading habilitado', tradeAllowed !== false, tradeAllowed === false ? 'ative o botão "Algo Trading" no terminal' : 'ok');
+  }
+
+  if (checks.every((c) => c.ok) && account) {
+    try {
+      const symbols = await sim.mt5Broker.listSymbols();
+      add('symbols', 'Instrumentos da conta', symbols.length > 0, `${symbols.length} símbolos disponíveis`);
+      sim.mt5Connected = true;
+    } catch (err: any) {
+      add('symbols', 'Instrumentos da conta', false, err?.message ?? 'não foi possível listar');
+    }
+  }
+
+  const ok = checks.every((c) => c.ok);
+  if (ok) {
+    sim.mt5Connected = true;
+    sim.setExecutionMode('MT5_LIVE');
+  } else {
+    sim.mt5Connected = false;
+  }
+  res.json({ ok, mode: sim.config.executionMode, checks, account, bridgeUrl: sim.mt5Broker.bridge.baseUrl });
+});
+
+api.post('/mt5/disconnect', (_req, res) => {
+  sim.setExecutionMode('SIMULATION');
+  res.json({ ok: true, mode: sim.config.executionMode });
+});
+
 // ── agents ───────────────────────────────────────────────────────────────
 api.get('/agents', (_req, res) =>
   res.json({ agents: agents.list(), freeDesks: agents.freeDesks(), roleMeta: ROLE_META }),
@@ -81,6 +132,15 @@ api.post('/agents', async (req, res) => {
   } catch (err: any) {
     res.status(400).json({ error: err?.message ?? 'cannot hire' });
   }
+});
+
+/** Turn the AI brain on/off for the whole floor at once. */
+api.post('/agents/ai-all', (req, res) => {
+  const useAI = !!req.body?.useAI;
+  for (const a of agents.list()) agents.update(a.id, { config: { ...a.config, useAI } });
+  sim.persist();
+  sim.systemSay(useAI ? 'Todos os agentes passaram a consultar o modelo de IA configurado.' : 'Agentes voltaram a operar apenas com as heurísticas internas.');
+  res.json({ ok: true, agents: agents.list().length, useAI });
 });
 
 api.patch('/agents/:id', (req, res) => {
@@ -219,6 +279,7 @@ setInterval(() => {
     nextNews: sim.nextHighImpact() ?? null,
     mt5Connected: sim.mt5Connected,
     config: sim.config,
+    ai: { enabled: ai.config.enabled, provider: ai.config.provider, model: ai.config.model },
     agents: agents.list().map((a) => ({
       id: a.id,
       state: a.state,
@@ -229,6 +290,7 @@ setInterval(() => {
       openPnl: a.openPnl,
       openSymbol: a.openSymbol,
       symbol: a.symbol,
+      config: a.config,
     })),
   };
   const data = JSON.stringify({ type: 'frame', payload: frame });

@@ -204,7 +204,21 @@ anexa ao terminal aberto e expõe:
 | `GET /positions` · `GET /history` | book e histórico |
 | `POST /order` · `POST /close` | execução a mercado com SL/TP |
 
-No app: **⚙ Setup → MetaTrader 5**. Quando a ponte responde, o seletor de ativos
+No app: **⚙ Setup → aba MetaTrader 5 → botão “🔌 Conectar MT5”**. Ele roda a verificação completa e
+só libera o modo live quando tudo passa:
+
+| Check | O que valida |
+|---|---|
+| Ponte local respondendo | `bridge.py` acessível na URL configurada |
+| Pacote MetaTrader5 | biblioteca instalada (Windows) |
+| Terminal aberto | `mt5.initialize()` com o terminal rodando |
+| Conta logada | login/servidor/corretora da conta ativa |
+| AutoTrading habilitado | botão *Algo Trading* ligado no terminal |
+| Instrumentos da conta | quantos símbolos foram encontrados |
+
+Cada item aparece com ✓/✕ e a dica do que fazer; passando todos, a execução é roteada automaticamente
+para o terminal (`MT5 LIVE` no HUD). O chip do HUD também abre essa aba com um clique, e *Paper desk*
+volta tudo para a simulação. Quando a ponte responde, o seletor de ativos
 da tela **“+ Hire agent”** passa a listar os símbolos reais da sua conta
 (inclusive sufixos do broker, como `EURUSD.m`) — você só escolhe quais quer operar.
 Em **Execution routing** você decide entre *Paper desk* (simulação) e *Send to MT5*.
@@ -217,12 +231,17 @@ acompanham o mercado de verdade mesmo antes de qualquer execução.
 
 ## 6. IA dos agentes (LM Studio / provider personalizado)
 
-**⚙ Setup → AI provider**:
+Pelo HUD: o chip **🧠 provider · modelo** (ao lado do indicador de execução) abre direto a aba de IA.
 
-* presets `lmstudio` (`http://127.0.0.1:1234/v1`), `ollama`, `openai` e **`custom`**;
+**⚙ Setup → aba Provider de IA**:
+
+* **dropdown de provider**: LM Studio (local), Ollama (local), OpenAI e **Provider personalizado** —
+  trocar no dropdown já preenche Base URL/modelo padrão e mostra a dica de como subir cada um;
 * campos livres de Base URL, API key, modelo, temperatura e max tokens;
 * botões **List models** e **Test prompt** para validar a conexão;
-* ative por agente em *Agent inspector → “Use local LLM for this agent”*.
+* ajuste de temperatura e máx. tokens;
+* **Ligar IA em todos** / **Só heurísticas** aplica a escolha à equipe inteira de uma vez;
+* ou ative por agente em *Agent inspector → “Use local LLM for this agent”*.
 
 O modelo recebe o contexto da oportunidade (par, lado, spread, regime, momentum,
 scores anteriores, próximo evento macro) e responde em JSON

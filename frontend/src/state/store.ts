@@ -139,7 +139,8 @@ export const useStore = create<State>((set, get) => ({
         a.stats.trades === u.stats.trades &&
         a.openPnl === u.openPnl &&
         a.openSymbol === u.openSymbol &&
-        a.daily?.realized === u.daily?.realized
+        a.daily?.realized === u.daily?.realized &&
+        a.config?.useAI === u.config?.useAI
       )
         return a;
       dirty = true;
@@ -155,6 +156,7 @@ export const useStore = create<State>((set, get) => ({
       simNow: f.simNow,
       mt5Connected: f.mt5Connected,
       config: f.config,
+      ai: f.ai ? ({ ...(get().ai ?? {}), ...f.ai } as any) : get().ai,
       agents: dirty ? patched : prev,
     });
   },

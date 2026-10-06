@@ -11,8 +11,16 @@ function Stat({ label, value, tone = 'text-slate-100', sub }: { label: string; v
   );
 }
 
-export function TopHUD({ onOpenSettings, onOpenHire }: { onOpenSettings: () => void; onOpenHire: () => void }) {
-  const { account, config, simNow, nextNews, connected, mt5Connected, agents, banner } = useStore();
+export function TopHUD({
+  onOpenSettings,
+  onOpenHire,
+}: {
+  onOpenSettings: (tab?: 'mt5' | 'ai') => void;
+  onOpenHire: () => void;
+}) {
+  const { account, config, simNow, nextNews, connected, mt5Connected, agents, banner, ai } = useStore();
+  const aiOn = !!ai?.enabled;
+  const aiAgents = agents.filter((a) => a.config?.useAI).length;
   const pnl = account?.dayPnl ?? 0;
   const live = config.executionMode === 'MT5_LIVE' && mt5Connected;
 
@@ -27,12 +35,20 @@ export function TopHUD({ onOpenSettings, onOpenHire }: { onOpenSettings: () => v
         <div className="flex items-center gap-2 pl-3">
           <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400 pulse-soft' : 'bg-rose-500'}`} />
           <span className="text-[10px] uppercase tracking-wider text-slate-400">{connected ? 'engine online' : 'reconnecting'}</span>
-          <span
-            className={`chip ${live ? 'border-rose-400/40 text-rose-300' : 'border-emerald-400/30 text-emerald-300'}`}
-            title={live ? 'Orders are routed to your MetaTrader 5 terminal' : 'Paper trading inside the simulation engine'}
+          <button
+            className={`chip transition hover:brightness-125 ${live ? 'border-rose-400/40 text-rose-300' : 'border-emerald-400/30 text-emerald-300'}`}
+            title={live ? 'Ordens roteadas para o seu MetaTrader 5 — clique para gerenciar' : 'Clique para conectar o MetaTrader 5'}
+            onClick={() => onOpenSettings('mt5')}
           >
-            {live ? 'MT5 LIVE' : 'SIMULATION'}
-          </span>
+            {live ? 'MT5 LIVE' : mt5Connected ? 'MT5 PRONTO' : 'SIMULATION'}
+          </button>
+          <button
+            className={`chip transition hover:brightness-125 ${aiOn ? 'border-violet-400/40 text-violet-300' : 'border-slate-500/40 text-slate-400'}`}
+            title="Provider de IA dos agentes — clique para trocar"
+            onClick={() => onOpenSettings('ai')}
+          >
+            🧠 {aiOn ? `${ai?.provider ?? 'ai'} · ${(ai?.model ?? '').slice(0, 18) || 'model'}${aiAgents ? ` · ${aiAgents}` : ''}` : 'IA desligada'}
+          </button>
         </div>
       </div>
 
@@ -71,7 +87,7 @@ export function TopHUD({ onOpenSettings, onOpenHire }: { onOpenSettings: () => v
           <button className="btn" onClick={onOpenHire}>
             + Hire agent
           </button>
-          <button className="btn" onClick={onOpenSettings}>
+          <button className="btn" onClick={() => onOpenSettings('mt5')}>
             ⚙ Setup
           </button>
         </div>

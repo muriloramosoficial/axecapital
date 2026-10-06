@@ -15,7 +15,7 @@ import { connect, useStore } from './state/store';
 
 export default function App() {
   const [hire, setHire] = useState(false);
-  const [settings, setSettings] = useState(false);
+  const [settings, setSettings] = useState<null | 'mt5' | 'ai'>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [brainAgent, setBrainAgent] = useState<string | null>(null);
   const connected = useStore((s) => s.connected);
@@ -36,7 +36,7 @@ export default function App() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.6)_100%)]" />
 
       <div className="pointer-events-none absolute inset-0 flex flex-col gap-2 p-3">
-        <TopHUD onOpenSettings={() => setSettings(true)} onOpenHire={() => setHire(true)} />
+        <TopHUD onOpenSettings={(tab) => setSettings(tab ?? 'mt5')} onOpenHire={() => setHire(true)} />
 
         <div className="flex min-h-0 flex-1 gap-2">
           {/* left column */}
@@ -84,11 +84,11 @@ export default function App() {
         </div>
       )}
 
-      <ModeNotice onOpenSettings={() => setSettings(true)} />
+      <ModeNotice onOpenSettings={() => setSettings('mt5')} />
 
       {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}
       {hire && <HireAgentModal onClose={() => setHire(false)} />}
-      {settings && <SettingsModal onClose={() => setSettings(false)} />}
+      {settings && <SettingsModal initialTab={settings} onClose={() => setSettings(null)} />}
     </div>
   );
 }
