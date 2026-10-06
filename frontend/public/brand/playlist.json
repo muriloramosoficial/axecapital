@@ -1,0 +1,7 @@
+{
+  "_comment": "Telão principal do escritório. Troque/adicione imagens em public/brand (16:9, de preferência 1536x864 .jpg) e liste aqui. 'seconds' é o tempo que cada arte fica no ar. O arquivo é lido quando a página abre — F5 aplica as mudanças.",
+  "slides": [
+    { "src": "/brand/axe-wall.jpg", "seconds": 24 },
+    { "src": "/brand/ads/slot-1.jpg", "seconds": 12 }
+  ]
+}

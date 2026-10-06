@@ -7,6 +7,7 @@ import { LabPanel } from './ui/LabPanel';
 import { Scoreboard } from './ui/Scoreboard';
 import { Captions } from './ui/Captions';
 import { ResultCard } from './ui/ResultCard';
+import { Watermark } from './ui/Watermark';
 import { CommsFeed } from './ui/CommsFeed';
 import { TradeJournal } from './ui/TradeJournal';
 import { AgentInspector, BriefingPanel, MarketRail, NewsPanel, WirePanel } from './ui/SidePanels';
@@ -120,6 +121,7 @@ export default function App() {
           <Scoreboard />
         </div>
       )}
+      <Watermark />
       {hudMode !== 'clean' && <Captions />}
       {hudMode !== 'clean' && <ResultCard />}
       {showHud && <SpotlightCard />}

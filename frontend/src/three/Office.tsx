@@ -4,7 +4,7 @@ import { MeshReflectorMaterial, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { getScreen } from './screens';
 import { useStore } from '../state/store';
-import { TradingViewScreen } from './TradingViewScreen';
+import { BrandWall } from './BrandWall';
 
 const FLOOR_W = 46;
 const FLOOR_D = 38;
@@ -387,21 +387,14 @@ export function Office() {
           />
         ))}
 
-        {/* par central: o maior do conjunto, com o TradingView real */}
-        {/* centro: gráfico ao vivo (TradingView) + página de notícias do crawler */}
+        {/* TELÃO CENTRAL — marca Axe Capital e espaço de patrocínio.
+            O interruptor do ControlBar troca entre a arte e o gráfico ao vivo. */}
         {tvEnabled ? (
-          <>
-            <mesh position={[-2.45, 4.32, 0.1]}>
-              <boxGeometry args={[4.7, 2.96, 0.1]} />
-              <meshStandardMaterial color="#161c25" roughness={0.4} metalness={0.45} />
-            </mesh>
-            <TradingViewScreen position={[-2.45, 4.32, 0.19]} symbol={focusSymbol} width={1180} height={720} scale={0.0038} />
-          </>
+          <BrandWall position={[0, 4.34, 0.18]} size={[9.4, 2.8]} />
         ) : (
-          <WallScreen position={[-2.45, 4.32, 0.14]} size={[4.48, 2.74]} kind="CHART" symbol={focusSymbol} />
+          <WallScreen position={[0, 4.34, 0.14]} size={[9.4, 2.8]} kind="CHART" symbol={focusSymbol} />
         )}
-        <WallScreen position={[2.45, 4.32, 0.14]} size={[4.48, 2.74]} kind="NEWSPAGE" />
-        <WallScreen position={[0, 2.08, 0.14]} size={[9.6, 1.18]} kind="WATCHLIST" />
+        <WallScreen position={[0, 2.12, 0.14]} size={[9.6, 1.18]} kind="WATCHLIST" />
 
         {/* faixa de ticker sob os monitores */}
         <mesh position={[0, 0.78, 0.14]}>

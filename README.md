@@ -447,6 +447,26 @@ API: `GET /api/briefing`.
   no ar pelo menos 2,6s (até 6,8s conforme o tamanho do texto) e, quando o pregão acelera, as
   falas de tom `bad`/`good` furam a fila. O contador “+N na fila” aparece no canto da legenda.
 
+## 9.7 Telão da marca, anúncios e marca d'água
+
+O telão central do escritório deixou de ser um widget embutido (que piscava e
+atrapalhava a cena) e virou um **painel de LED com a arte da Axe Capital**, pronto para
+monetização.
+
+- Arte padrão: `frontend/public/brand/axe-wall.jpg` (1536×864, 16:9).
+- **Carrossel de anúncios**: edite `frontend/public/brand/playlist.json` —
+  `{ "slides": [ { "src": "/brand/axe-wall.jpg", "seconds": 24 }, { "src": "/brand/ads/slot-1.jpg", "seconds": 12 } ] }`.
+  Jogue os arquivos novos em `public/brand` (ou `public/brand/ads`), liste aqui e dê F5:
+  o telão passa a alternar entre eles com crossfade de ~1s, varredura de LED e luz
+  esverdeada lavando as mesas. Já vem um placeholder "ESPAÇO PATROCINADO".
+- O interruptor **Telão** na barra de controles alterna entre a arte e o gráfico ao vivo
+  do ativo em foco.
+- **Marca d'água** (`frontend/src/ui/Watermark.tsx`): emblema + "AXE CAPITAL" + handle no
+  canto da tela, visível em **todos** os modos de HUD, inclusive o limpo. Tecla **W**
+  liga/desliga. Personalize pelo console do navegador:
+  `localStorage.setItem('axe.watermark.handle','@seucanal')` e
+  `localStorage.setItem('axe.watermark.corner','br')` (`tl|tr|bl|br`).
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

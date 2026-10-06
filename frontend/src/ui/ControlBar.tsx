@@ -91,7 +91,7 @@ export function ControlBar({ onToggleTv }: { onToggleTv: () => void }) {
       </div>
       <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400">
         <input type="checkbox" checked={tvEnabled} onChange={() => onToggleTv()} className="accent-emerald-400" />
-        TradingView wall
+        Telão: marca {tvEnabled ? '' : '/ gráfico'}
       </label>
 
       <div className="ml-auto flex items-center gap-2 pr-1 text-[9px] uppercase tracking-[0.18em] text-slate-500">
