@@ -602,6 +602,39 @@ Regra do projeto (gravada no `.gitattributes`):
 Para pegar a correção na sua máquina, rode o atualizador de novo:
 `iex (irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1)`
 
+## 9.15 "Liguei o MT5 e as ordens não entram" — diagnóstico
+
+Abra **/admin → MetaTrader 5 → Diagnóstico de execução**, clique em **🩺 Rodar
+diagnóstico** e, se tudo estiver verde, em **🧪 Ordem de teste (0.01)** (envia uma ordem
+real de volume mínimo e mostra o retcode cru do terminal).
+
+O diagnóstico checa, em ordem:
+
+| Check | O que significa quando falha |
+| --- | --- |
+| **Roteamento de ordens** | o modo ainda é `SIMULAÇÃO`. Conectar o MT5 **não basta**: é preciso conectar em **live**. Se você usou "paper", o app só lê preços/conta e as ordens continuam simuladas. |
+| Ponte local | `mt5-bridge/bridge.py` não está rodando (`python mt5-bridge/bridge.py`, porta 8788). |
+| Terminal conectado ao servidor | o MT5 está aberto mas sem conexão com a corretora. |
+| AutoTrading (Algo Trading) | botão desligado no terminal (Ctrl+E). |
+| Conta com trading liberado | conta *investor/read-only* ou bloqueada. |
+| Corretora permite EA (`trade_expert`) | o servidor da corretora bloqueia trading automático. |
+| Símbolo no Market Watch / `trade_mode` | o ativo não está visível ou está em *close only*. Repare no sufixo: muita corretora usa `EURUSD.m`, `EURUSDm`, `EURUSD_raw`. |
+| Cotação chegando / margem livre | mercado fechado ou sem margem. |
+| **order_check** | simulação oficial do MT5: ele diz se aceitaria a ordem **sem enviar nada**. |
+
+Três causas clássicas que a ponte agora resolve sozinha:
+
+* **retcode 10030 — "Unsupported filling mode"**: cada corretora aceita FOK, IOC ou
+  RETURN. A ponte lê `symbol_info.filling_mode` e **tenta os modos em sequência**;
+* **retcode 10016 — "Invalid stops"**: SL/TP perto demais do preço. Os stops agora são
+  afastados automaticamente para `trade_stops_level`;
+* **volume inválido**: o lote é arredondado para `volume_step` e limitado a
+  `volume_min/volume_max`.
+
+Além disso o engine ficou falante: ele loga `enviando BUY 0.1 EURUSD via MetaTrader 5
+(local terminal)` a cada execução, avisa no feed quando a ponte cai (as ordens voltam
+para a mesa simulada) e mostra o motivo exato da recusa em vez de um `HTTP 409` seco.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

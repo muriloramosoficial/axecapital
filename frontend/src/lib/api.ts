@@ -29,6 +29,12 @@ export const api = {
       '/api/mt5/connect',
       { method: 'POST', body: JSON.stringify({ paper }) },
     ),
+  mt5Diagnose: (symbol?: string) =>
+    json<{ ok: boolean; symbol: string; checks: { id: string; label: string; ok: boolean; detail: string }[] }>(
+      `/api/mt5/diagnose${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`,
+    ),
+  mt5TestOrder: (symbol?: string, side: 'BUY' | 'SELL' = 'BUY') =>
+    json<any>('/api/mt5/test-order', { method: 'POST', body: JSON.stringify({ symbol, side }) }),
   mt5Disconnect: () => json<any>('/api/mt5/disconnect', { method: 'POST' }),
   aiForAll: (useAI: boolean) => json<any>('/api/agents/ai-all', { method: 'POST', body: JSON.stringify({ useAI }) }),
   setBridgeUrl: (url: string) => json<any>('/api/mt5/bridge-url', { method: 'POST', body: JSON.stringify({ url }) }),

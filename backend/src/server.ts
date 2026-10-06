@@ -137,6 +137,56 @@ api.post('/mt5/connect', async (req, res) => {
   res.json({ ok, paper, mode: sim.config.executionMode, checks, account, bridgeUrl: sim.mt5Broker.bridge.baseUrl });
 });
 
+
+/**
+ * Diagnóstico de execução no MetaTrader 5.
+ *
+ * Responde "por que a ordem não entra": AutoTrading, permissão da conta,
+ * símbolo no Market Watch, trade_mode, volume mínimo, margem e um order_check
+ * (simulação oficial do MT5, que não envia nada).
+ */
+api.get('/mt5/diagnose', async (req, res) => {
+  const symbol = String(req.query.symbol ?? sim.watchlist[0] ?? 'EURUSD');
+  const out: { id: string; label: string; ok: boolean; detail: string }[] = [];
+  out.push({
+    id: 'routing',
+    label: 'Roteamento de ordens',
+    ok: sim.config.executionMode === 'MT5_LIVE' && sim.mt5Connected,
+    detail:
+      sim.config.executionMode === 'MT5_LIVE'
+        ? sim.mt5Connected
+          ? 'MT5_LIVE — ordens vão para o terminal'
+          : 'modo MT5_LIVE, mas a ponte caiu: as ordens estão indo para a simulação'
+        : 'modo SIMULAÇÃO — nada é enviado ao terminal (conecte em "live" na aba MetaTrader 5)',
+  });
+  try {
+    const bridge = await sim.mt5Broker.bridge.diagnose(symbol);
+    res.json({ ok: out.every((c) => c.ok) && bridge.ok, symbol, checks: [...out, ...bridge.checks] });
+  } catch (err: any) {
+    out.push({ id: 'bridge', label: 'Ponte local (mt5-bridge)', ok: false, detail: err?.message ?? 'sem resposta' });
+    res.json({ ok: false, symbol, checks: out });
+  }
+});
+
+/** Envia UMA ordem real de volume mínimo — prova final de que a rota funciona. */
+api.post('/mt5/test-order', async (req, res) => {
+  const symbol = String(req.body?.symbol ?? sim.watchlist[0] ?? 'EURUSD');
+  const side = String(req.body?.side ?? 'BUY').toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
+  try {
+    const out = await sim.mt5Broker.bridge.testOrder({ symbol, side, volume: 0.01, comment: 'AxeCapital test' });
+    const ticket = out?.order ?? out?.deal;
+    sim.systemSay(
+      out?.ok
+        ? `Ordem de teste enviada ao MetaTrader 5 (${side} ${symbol}, ticket ${ticket}).`
+        : `Ordem de teste recusada pelo MetaTrader 5: ${out?.comment ?? out?.retcode}`,
+      out?.ok ? 'good' : 'bad',
+    );
+    res.json(out);
+  } catch (err: any) {
+    res.status(502).json({ ok: false, error: err?.message ?? 'falhou' });
+  }
+});
+
 api.post('/mt5/disconnect', (_req, res) => {
   sim.setExecutionMode('SIMULATION');
   sim.mt5Connected = false;

@@ -93,10 +93,19 @@ export class SimulationEngine {
   }
 
   private async pollMT5() {
+    const before = this.mt5Connected;
     try {
       this.mt5Connected = await this.mt5Broker.isConnected();
     } catch {
       this.mt5Connected = false;
+    }
+    if (before === this.mt5Connected) return;
+    // a mesa precisa saber na hora que parou de rotear para o terminal
+    if (!this.mt5Connected && this.config.executionMode === 'MT5_LIVE') {
+      console.warn('[axe-capital] ponte MT5 caiu — as ordens voltaram para a simulação');
+      this.systemSay('Ponte com o MetaTrader 5 caiu: as ordens voltaram para a mesa simulada.', 'bad');
+    } else if (this.mt5Connected) {
+      console.log('[axe-capital] ponte MT5 online');
     }
   }
 
@@ -563,8 +572,12 @@ export class SimulationEngine {
     const price = this.market.getPrice(op.symbol)!;
     op.entry = op.side === 'BUY' ? price.ask : price.bid;
 
+    const venue = this.broker;
+    console.log(
+      `[axe-capital] enviando ${op.side} ${op.lots} ${op.symbol} via ${venue.name} (mode=${this.config.executionMode}, mt5=${this.mt5Connected})`,
+    );
     try {
-      const result = await this.broker.placeOrder({
+      const result = await venue.placeOrder({
         id: uid('ord'),
         symbol: op.symbol,
         side: op.side,
@@ -575,6 +588,7 @@ export class SimulationEngine {
         comment: `Axe#${op.number}`,
       });
       if (!result.ok) {
+        console.warn(`[axe-capital] ordem recusada por ${venue.name}: ${result.message} (retcode ${result.retcode ?? '-'})`);
         op.status = 'REJECTED';
         op.rejectionReason = result.message;
         agents.setState(agent.id, 'ERROR', `Order rejected: ${result.message}`, 2000);
@@ -619,8 +633,10 @@ export class SimulationEngine {
         this.say(owner, `Position is live on ${op.symbol}. I own this one until it closes.`, 'info');
       }
     } catch (err: any) {
+      console.error(`[axe-capital] erro de execução em ${venue.name}:`, err?.message ?? err);
       agents.setState(agent.id, 'ERROR', `Execution error`, 2000);
       this.say(agent, `Execution error: ${err?.message ?? err}`, 'bad');
+      this.systemSay(`Falha ao enviar a ordem (${venue.name}): ${err?.message ?? err}`, 'bad');
     }
   }
 

@@ -34,7 +34,19 @@ export class MT5Bridge {
         signal: ctrl.signal,
         headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
       });
-      if (!res.ok) throw new Error(`bridge ${path} -> HTTP ${res.status}`);
+      if (!res.ok) {
+        // a ponte devolve { detail: "AutoTrading desligado..." } — sem isto a
+        // mensagem real do MetaTrader se perdia e tudo virava "HTTP 409"
+        const body = await res.text().catch(() => '');
+        let detail = body;
+        try {
+          const j = JSON.parse(body);
+          detail = j?.detail ?? j?.error ?? body;
+        } catch {
+          /* corpo não-JSON: usa o texto cru */
+        }
+        throw new Error(detail ? `${detail}` : `bridge ${path} -> HTTP ${res.status}`);
+      }
       return (await res.json()) as T;
     } finally {
       clearTimeout(t);
@@ -65,6 +77,16 @@ export class MT5Bridge {
   }
   order(body: unknown) {
     return this.call<any>('/order', { method: 'POST', body: JSON.stringify(body) }, 15000);
+  }
+  diagnose(symbol = 'EURUSD', volume = 0.01) {
+    return this.call<{ ok: boolean; checks: { id: string; label: string; ok: boolean; detail: string }[] }>(
+      `/diagnose?symbol=${encodeURIComponent(symbol)}&volume=${volume}`,
+      undefined,
+      20000,
+    );
+  }
+  testOrder(body: unknown) {
+    return this.call<any>('/test-order', { method: 'POST', body: JSON.stringify(body) }, 20000);
   }
   close(ticket: number) {
     return this.call<any>('/close', { method: 'POST', body: JSON.stringify({ ticket }) }, 15000);

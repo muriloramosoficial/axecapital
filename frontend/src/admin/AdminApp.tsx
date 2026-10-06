@@ -79,6 +79,7 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
   const config = useStore((s) => s.config);
   const account = useStore((s) => s.account);
   const agents = useStore((s) => s.agents);
+  const watchlist = useStore((s) => s.watchlist);
   const ai = useStore((s) => s.ai);
   const mt5Connected = useStore((s) => s.mt5Connected);
   const hudOn = useStore((s) => s.hudOn);
@@ -92,6 +93,10 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
   const restMode = useStore((s) => s.restMode);
   const setRestMode = useStore((s) => s.setRestMode);
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
+  const [diag, setDiag] = useState<{ ok: boolean; symbol: string; checks: { id: string; label: string; ok: boolean; detail: string }[] } | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+  const [diagSymbol, setDiagSymbol] = useState('');
   const [pwdMsg, setPwdMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const setUiScale = useStore((s) => s.setUiScale);
   const cameraMode = useStore((s) => s.cameraMode);
@@ -462,6 +467,80 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
               <button className="btn btn-accent" onClick={() => setModal('mt5')}>
                 Abrir assistente de conexão
               </button>
+            </Card>
+
+            <Card
+              title="Diagnóstico de execução"
+              hint="Responde por que a ordem não entra no terminal: roteamento, AutoTrading, permissão da conta, símbolo, volume, stops e margem — incluindo o order_check oficial do MT5."
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={diagSymbol}
+                  onChange={(e) => setDiagSymbol(e.target.value.toUpperCase())}
+                  placeholder={watchlist[0] ?? 'EURUSD'}
+                  className="w-[130px] rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[12px] uppercase text-slate-200 outline-none focus:border-emerald-400/40"
+                />
+                <button
+                  className="btn btn-accent"
+                  disabled={diagBusy}
+                  onClick={async () => {
+                    setDiagBusy(true);
+                    setTestMsg(null);
+                    try {
+                      setDiag(await api.mt5Diagnose(diagSymbol || undefined));
+                    } catch (err: any) {
+                      setTestMsg({ tone: 'err', text: err?.message ?? 'falhou' });
+                    } finally {
+                      setDiagBusy(false);
+                    }
+                  }}
+                >
+                  {diagBusy ? 'checando…' : '🩺 Rodar diagnóstico'}
+                </button>
+                <button
+                  className="btn"
+                  title="Envia uma ordem REAL de volume mínimo (0.01) para provar a rota"
+                  onClick={async () => {
+                    setTestMsg(null);
+                    try {
+                      const out = await api.mt5TestOrder(diagSymbol || undefined);
+                      setTestMsg(
+                        out?.ok
+                          ? { tone: 'ok', text: `ordem executada · ticket ${out.order ?? out.deal} · preço ${out.price}` }
+                          : { tone: 'err', text: `recusada · retcode ${out?.retcode} · ${out?.comment ?? ''}` },
+                      );
+                    } catch (err: any) {
+                      setTestMsg({ tone: 'err', text: err?.message ?? 'falhou' });
+                    }
+                  }}
+                >
+                  🧪 Ordem de teste (0.01)
+                </button>
+              </div>
+
+              {testMsg && (
+                <div
+                  className={`mt-3 rounded-lg px-3 py-2 text-[11px] ${
+                    testMsg.tone === 'ok' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'
+                  }`}
+                >
+                  {testMsg.text}
+                </div>
+              )}
+
+              {diag && (
+                <ul className="mt-3 space-y-1.5">
+                  {diag.checks.map((c) => (
+                    <li key={c.id} className="flex items-start gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
+                      <span className={`mt-[3px] text-[11px] ${c.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{c.ok ? '✓' : '✕'}</span>
+                      <span className="min-w-0">
+                        <span className="block text-[12px] text-slate-200">{c.label}</span>
+                        <span className="block break-words text-[10px] leading-snug text-slate-500">{c.detail}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
 
             <Card title="Modos de execução" hint="Resumo do que cada modo faz.">
