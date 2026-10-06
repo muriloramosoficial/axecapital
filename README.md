@@ -245,16 +245,21 @@ acompanham o mercado de verdade mesmo antes de qualquer execução.
 
 ---
 
-## 6. IA dos agentes (LM Studio / provider personalizado)
+## 6. IA dos agentes (LM Studio, NVIDIA NIM, Groq, OpenRouter, custom…)
 
 Pelo HUD: o chip **🧠 provider · modelo** (ao lado do indicador de execução) abre direto a aba de IA.
 
 **⚙ Setup → aba Provider de IA**:
 
-* **dropdown de provider**: LM Studio (local), Ollama (local), OpenAI e **Provider personalizado** —
-  trocar no dropdown já preenche Base URL/modelo padrão e mostra a dica de como subir cada um;
+* **dropdown de provider**: LM Studio (local), Ollama (local), OpenAI, **NVIDIA NIM**
+  (`https://integrate.api.nvidia.com/v1`, chaves `nvapi-…`), **Groq**, **OpenRouter** e
+  **Provider personalizado** — trocar no dropdown já preenche Base URL/modelo padrão e mostra a
+  dica de como usar cada um;
 * campos livres de Base URL, API key, modelo, temperatura e max tokens;
-* botões **List models** e **Test prompt** para validar a conexão;
+* botões **⟳ Listar modelos** e **⚡ Testar prompt** — eles enviam **os valores que estão no
+  formulário**, então funcionam antes de salvar e sem corrida com o `onBlur`; a Base URL é
+  normalizada (espaços, aspas, barra final, `/chat/completions` sobrando e `/v1` ausente) e o
+  erro do provider aparece inteiro na tela (status + mensagem + dica), em vez de só “HTTP 401”;
 * ajuste de temperatura e máx. tokens;
 * **Ligar IA em todos** / **Só heurísticas** aplica a escolha à equipe inteira de uma vez;
 * ou ative por agente em *Agent inspector → “Use local LLM for this agent”*.
@@ -340,6 +345,25 @@ de todos os cérebros (amostras, win rate, expectancy, P&L aprendido).
 
 ---
 
+## 9.1 De onde vêm os dados: simulado × real
+
+| | Preços / candles | Conta e instrumentos | Execução |
+| --- | --- | --- | --- |
+| **SIMULAÇÃO** (padrão) | motor próprio (random-walk com regime, volatilidade, spread, gaps de notícia) — **fictícios** | conta fictícia `SIM-884210`, 28 instrumentos | simulada (slippage e spread modelados) |
+| **MT5 · DADOS REAIS, ORDENS EM PAPEL** | **cotações reais** da sua conta logada, via ponte | **sua conta real** (saldo, equity, símbolos) | simulada — nada é enviado ao terminal |
+| **MT5 LIVE** | cotações reais | sua conta real | **ordens enviadas ao MetaTrader 5** |
+
+O que é “real” em qualquer um dos três modos: a **lógica** — pipeline dos agentes, scores,
+gestão de risco, sizing por % de risco, stop/alvo, P&L marcado a mercado, journal, win rate,
+regra de 1 entrada por agente e o cérebro de aprendizado. O que muda é só a origem do preço e
+o destino da ordem.
+
+No ⚙ Setup → MetaTrader 5 há dois botões: **📡 Dados reais · ordens em papel** (recomendado
+para transmitir) e **🔌 Conectar live**. O chip do topo mostra em qual modo o desk está:
+`SIMULAÇÃO` · `MT5 DADOS · PAPEL` · `MT5 LIVE`.
+
+---
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:
@@ -349,6 +373,25 @@ O escritório foi ajustado para ficar bonito numa captura de janela/navegador o 
 * **agentes em traje formal** — paletó com lapela, camisa, gravata, crachá, óculos/headset
   (trader e scout) e variações determinísticas por agente;
 * **plaquinha de mesa clara** com nome, ativo, estado, operação aberta e resultado do dia.
+
+### Direção de câmera cinematográfica
+
+A câmera deixou de ser um plano fixo: existe um **diretor** que monta planos como numa
+transmissão esportiva — `ESTABLISH` (plano geral com crane lento), `PUSH IN` (aproximação na
+mesa), `ORBIT` (órbita em volta do agente), `OVER THE SHOULDER` (por cima do ombro, olhando os
+monitores), `CLOSE UP`, `MARKET INTELLIGENCE` (travelling pela parede de monitores) e
+`TRADING FLOOR` (voo rasante pelo pregão). Cada plano tem easing próprio e uma leve
+respiração de câmera na mão.
+
+A escolha da próxima mesa é ponderada por interesse: posição aberta, estado `EXECUTING`/
+`ALERT`/`APPROVED`/`REJECTED`, P&L em aberto e quanto tempo o agente está sem aparecer — e
+qualquer evento importante do engine (`CAMERA_FOCUS`) corta na hora para a mesa envolvida.
+Enquanto a câmera está num agente, um **lower-third** aparece no canto inferior esquerdo com
+nome, função, ativo, preço, estado, operação ao vivo e resultado do dia.
+
+Na barra de controles: **🎬 Direção** (roteiro automático), **🎯 Eventos** (só aproxima em
+eventos) e **🖐 Manual**. Arrastar a cena assume o controle por 25s e depois o roteiro volta
+sozinho.
 
 ### Esconder / mostrar a HUD
 

@@ -13,7 +13,11 @@ export const api = {
   snapshot: () => json<any>('/api/snapshot'),
   symbols: () => json<{ source: string; symbols: SymbolInfo[] }>('/api/symbols'),
   mt5Status: () => json<any>('/api/mt5/status'),
-  mt5Connect: () => json<{ ok: boolean; mode: string; checks: { id: string; label: string; ok: boolean; detail: string }[]; account: any; bridgeUrl: string }>('/api/mt5/connect', { method: 'POST' }),
+  mt5Connect: (paper = false) =>
+    json<{ ok: boolean; paper: boolean; mode: string; checks: { id: string; label: string; ok: boolean; detail: string }[]; account: any; bridgeUrl: string }>(
+      '/api/mt5/connect',
+      { method: 'POST', body: JSON.stringify({ paper }) },
+    ),
   mt5Disconnect: () => json<any>('/api/mt5/disconnect', { method: 'POST' }),
   aiForAll: (useAI: boolean) => json<any>('/api/agents/ai-all', { method: 'POST', body: JSON.stringify({ useAI }) }),
   setBridgeUrl: (url: string) => json<any>('/api/mt5/bridge-url', { method: 'POST', body: JSON.stringify({ url }) }),
@@ -31,6 +35,12 @@ export const api = {
   brains: () => json<{ brains: any[] }>('/api/brains'),
   aiConfig: () => json<AIConfig>('/api/ai/config'),
   setAiConfig: (patch: Partial<AIConfig>) => json<AIConfig>('/api/ai/config', { method: 'POST', body: JSON.stringify(patch) }),
-  aiModels: () => json<{ models: string[] }>('/api/ai/models'),
-  aiTest: () => json<{ ok: boolean; text?: string; error?: string }>('/api/ai/test', { method: 'POST' }),
+  /** draft = valores atuais do formulário, testados sem precisar salvar antes */
+  aiModels: (draft?: Partial<AIConfig>) =>
+    json<{ models: string[] }>('/api/ai/models', { method: 'POST', body: JSON.stringify(draft ?? {}) }),
+  aiTest: (draft?: Partial<AIConfig>) =>
+    json<{ ok: boolean; text?: string; error?: string; ms?: number }>('/api/ai/test', {
+      method: 'POST',
+      body: JSON.stringify(draft ?? {}),
+    }),
 };

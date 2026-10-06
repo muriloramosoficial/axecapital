@@ -142,7 +142,11 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
   const strip = useRef<THREE.MeshBasicMaterial>(null);
   const focus = useStore((s) => s.focus);
   const color = agent ? STATE_COLOR[agent.state] ?? '#64748b' : '#94a3b8';
+  const spotlightId = useStore((s) => s.spotlight?.agentId);
+  const selectedId = useStore((s) => s.selectedAgentId);
   const focused = focus?.deskId === desk.id;
+  const highlighted = focused || (!!agent && (agent.id === spotlightId || agent.id === selectedId));
+  const firstName = (agent?.name ?? '').split(' ')[0] || desk.label;
 
   useFrame((s) => {
     if (strip.current) {
@@ -208,56 +212,40 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
       <Chair occupied={!!agent} />
       {agent && <Agent3D agent={agent} seat={[0, 1.05, 0.78]} />}
 
-      {focused && <pointLight position={[0, 1.9, 0.4]} intensity={6} distance={5} color="#8ec7ff" />}
+      {highlighted && <pointLight position={[0, 1.9, 0.4]} intensity={7} distance={5.5} color="#cfe6ff" />}
 
       <Html
-        position={[0, DESK_H + 1.46, desk.depth / 2]}
+        position={[0, DESK_H + 1.3, desk.depth / 2]}
         center
-        distanceFactor={11}
+        distanceFactor={9}
         zIndexRange={[20, 0]}
         style={{ pointerEvents: 'none' }}
       >
         <div
-          className="min-w-[150px] whitespace-nowrap rounded-md border bg-white/90 px-2 py-[4px] shadow-[0_8px_22px_-10px_rgba(15,23,42,0.55)] backdrop-blur-sm"
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-full border bg-[#0d141d]/85 px-2 py-[2px] backdrop-blur-sm"
           style={{
-            borderColor: `${color}66`,
-            borderLeft: `3px solid ${color}`,
-            boxShadow: focused ? `0 0 22px ${color}55, 0 8px 22px -10px rgba(15,23,42,0.6)` : undefined,
+            borderColor: `${color}55`,
+            boxShadow: highlighted ? `0 0 16px ${color}66` : undefined,
           }}
         >
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-800">
-              {agent ? `${agent.name} · ${agent.symbol ?? desk.label}` : `${desk.label} · vacant`}
+          <span
+            className="h-[6px] w-[6px] shrink-0 rounded-full"
+            style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+          />
+          <span className="text-[9px] font-semibold tracking-wide text-slate-100">
+            {agent ? firstName : desk.label}
+          </span>
+          {agent?.symbol && <span className="text-[8px] text-slate-400">{agent.symbol}</span>}
+          {agent && (agent.openSymbol || (agent.daily?.realized ?? 0) !== 0) && (
+            <span
+              className="mono text-[9px] font-semibold"
+              style={{
+                color: (agent.openSymbol ? agent.openPnl : agent.daily?.realized ?? 0) >= 0 ? '#5eead4' : '#fda4af',
+              }}
+            >
+              {agent.openSymbol ? '●' : ''}
+              {money(agent.openSymbol ? agent.openPnl : agent.daily?.realized ?? 0)}
             </span>
-            {agent && (
-              <span
-                className="rounded-[3px] px-1 text-[8px] font-bold uppercase tracking-[0.1em]"
-                style={{ color: '#fff', background: color }}
-              >
-                {agent.state}
-              </span>
-            )}
-          </div>
-          {agent && (
-            <div className="mt-[2px] flex items-center justify-between gap-2 font-mono text-[9px] leading-tight">
-              {agent.openSymbol ? (
-                <span style={{ color: agent.openPnl >= 0 ? '#047857' : '#b91c1c' }}>
-                  ● LIVE {agent.openSymbol} {money(agent.openPnl)}
-                </span>
-              ) : (
-                <span className="text-slate-500">slot free · ready</span>
-              )}
-              <span
-                className="rounded px-1 font-semibold"
-                style={{
-                  color: (agent.daily?.realized ?? 0) >= 0 ? '#065f46' : '#991b1b',
-                  background: (agent.daily?.realized ?? 0) >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-                }}
-                title="Realised result of the day for this agent"
-              >
-                DAY {money(agent.daily?.realized ?? 0)} · {agent.daily?.trades ?? 0}t
-              </span>
-            </div>
           )}
         </div>
       </Html>

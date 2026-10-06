@@ -67,7 +67,14 @@ api.post('/mt5/bridge-url', (req, res) => {
  * Guided "Connect MT5" flow: runs every check the desk needs before it is
  * allowed to route real orders, and only then flips the execution mode.
  */
-api.post('/mt5/connect', async (_req, res) => {
+/**
+ * body: { paper?: boolean }
+ *  - paper = false (padrão) → ordens roteadas para o MetaTrader 5 (MT5_LIVE)
+ *  - paper = true           → preços, símbolos e conta REAIS vindos do terminal,
+ *                             mas as ordens continuam simuladas (paper trading)
+ */
+api.post('/mt5/connect', async (req, res) => {
+  const paper = !!req.body?.paper;
   const checks: { id: string; label: string; ok: boolean; detail: string }[] = [];
   const add = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, ok, detail });
   let account: any = null;
@@ -102,15 +109,22 @@ api.post('/mt5/connect', async (_req, res) => {
   const ok = checks.every((c) => c.ok);
   if (ok) {
     sim.mt5Connected = true;
-    sim.setExecutionMode('MT5_LIVE');
+    sim.setExecutionMode(paper ? 'SIMULATION' : 'MT5_LIVE');
+    sim.systemSay(
+      paper
+        ? 'MetaTrader 5 conectado em modo PAPER: preços, símbolos e conta reais, ordens simuladas.'
+        : 'MetaTrader 5 conectado: ordens serão enviadas para o terminal.',
+      paper ? 'info' : 'good',
+    );
   } else {
     sim.mt5Connected = false;
   }
-  res.json({ ok, mode: sim.config.executionMode, checks, account, bridgeUrl: sim.mt5Broker.bridge.baseUrl });
+  res.json({ ok, paper, mode: sim.config.executionMode, checks, account, bridgeUrl: sim.mt5Broker.bridge.baseUrl });
 });
 
 api.post('/mt5/disconnect', (_req, res) => {
   sim.setExecutionMode('SIMULATION');
+  sim.mt5Connected = false;
   res.json({ ok: true, mode: sim.config.executionMode });
 });
 
@@ -226,22 +240,36 @@ api.post('/ai/config', (req, res) => {
   res.json({ ...cfg, apiKey: cfg.apiKey ? '***' : '' });
 });
 
-api.get('/ai/models', async (_req, res) => {
+/**
+ * Tanto GET quanto POST: o POST aceita os valores que estão NO FORMULÁRIO
+ * (baseUrl/apiKey/model), então o usuário pode testar antes de salvar e sem
+ * depender de corrida entre o onBlur e o clique do botão.
+ */
+const listModels = async (req: any, res: any) => {
   try {
-    res.json({ models: await ai.listModels() });
+    const models = await ai.listModels(req.body ?? undefined);
+    res.json({ models });
   } catch (err: any) {
     res.status(502).json({ error: err?.message ?? 'cannot reach provider', models: [] });
   }
-});
+};
+api.get('/ai/models', listModels);
+api.post('/ai/models', listModels);
 
-api.post('/ai/test', async (_req, res) => {
+const testPrompt = async (req: any, res: any) => {
+  const started = Date.now();
   try {
-    const text = await ai.chat('You are a trading desk assistant. Answer in one short sentence.', 'Say hello to the Axe Capital desk.');
-    res.json({ ok: true, text });
+    const text = await ai.chat(
+      'You are a trading desk assistant. Answer in one short sentence.',
+      'Say hello to the Axe Capital desk.',
+      req.body ?? undefined,
+    );
+    res.json({ ok: true, text: text || '(o modelo respondeu vazio)', ms: Date.now() - started });
   } catch (err: any) {
-    res.status(502).json({ ok: false, error: err?.message ?? 'failed' });
+    res.status(502).json({ ok: false, error: err?.message ?? 'failed', ms: Date.now() - started });
   }
-});
+};
+api.post('/ai/test', testPrompt);
 
 app.use('/api', api);
 

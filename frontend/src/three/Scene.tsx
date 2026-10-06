@@ -1,52 +1,17 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, AdaptiveDpr, Line } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import { CameraDirector, OVERVIEW } from './CameraDirector';
 import { Office } from './Office';
 import { Desk3D } from './Desk3D';
 import { updateScreens } from './screens';
 import { useStore } from '../state/store';
 import type { Desk } from '../types';
 
-const OVERVIEW = { pos: new THREE.Vector3(0, 17.5, 27), target: new THREE.Vector3(0, 1.6, -1) };
-
 function ScreenTicker() {
   useFrame(({ clock }) => updateScreens(clock.elapsedTime * 1000));
-  return null;
-}
-
-function CameraRig({ controls }: { controls: React.MutableRefObject<any> }) {
-  const { camera } = useThree();
-  const focus = useStore((s) => s.focus);
-  const desks = useStore((s) => s.desks);
-  const autoCamera = useStore((s) => s.autoCamera);
-  const wanted = useRef({ pos: OVERVIEW.pos.clone(), target: OVERVIEW.target.clone() });
-  const until = useRef(0);
-
-  useEffect(() => {
-    if (!focus || !autoCamera) return;
-    const desk = desks.find((d) => d.id === focus.deskId);
-    if (!desk) return;
-    const dir = new THREE.Vector3(Math.sin(desk.rot), 0, Math.cos(desk.rot));
-    const target = new THREE.Vector3(desk.x, 1.25, desk.z);
-    wanted.current = {
-      target,
-      pos: target.clone().add(dir.multiplyScalar(5.4)).add(new THREE.Vector3(0.8, 3.1, 0)),
-    };
-    until.current = performance.now() + 5200;
-  }, [focus?.at, autoCamera, desks]);
-
-  useFrame(() => {
-    if (!controls.current) return;
-    if (!autoCamera) return;
-    if (performance.now() > until.current) {
-      wanted.current = { pos: OVERVIEW.pos.clone(), target: OVERVIEW.target.clone() };
-    }
-    camera.position.lerp(wanted.current.pos, 0.035);
-    controls.current.target.lerp(wanted.current.target, 0.045);
-    controls.current.update();
-  });
   return null;
 }
 
@@ -138,7 +103,7 @@ export function Scene() {
       </Suspense>
 
       <ScreenTicker />
-      <CameraRig controls={controls} />
+      <CameraDirector controls={controls} />
       <OrbitControls
         ref={controls}
         enablePan
@@ -147,7 +112,7 @@ export function Scene() {
         minDistance={4}
         maxDistance={46}
         maxPolarAngle={Math.PI / 2.12}
-        target={[0, 1.6, -1]}
+        target={[OVERVIEW.target.x, OVERVIEW.target.y, OVERVIEW.target.z]}
       />
       <AdaptiveDpr pixelated />
       <EffectComposer multisampling={0}>

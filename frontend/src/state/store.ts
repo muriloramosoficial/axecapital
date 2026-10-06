@@ -15,6 +15,8 @@ import type {
 } from '../types';
 
 export type HudMode = 'full' | 'broadcast' | 'clean';
+/** director = roteiro cinematográfico automático · follow = só segue eventos · manual = usuário no controle */
+export type CameraMode = 'director' | 'follow' | 'manual';
 
 const HUD_MODES: HudMode[] = ['full', 'broadcast', 'clean'];
 
@@ -74,6 +76,9 @@ interface State {
   /** 'full' = todos os painéis · 'broadcast' = só HUD + ticker · 'clean' = só o escritório */
   hudMode: HudMode;
   uiScale: number;
+  cameraMode: CameraMode;
+  /** agente destacado pela direção de câmera (usado no lower-third da live) */
+  spotlight: { agentId: string; shot: string; reason: string; at: number } | null;
   selectedAgentId: string | null;
   ambient: AmbientPing[];
   flash: { deskId: string; tone: string; at: number } | null;
@@ -82,6 +87,8 @@ interface State {
   setAutoCamera: (v: boolean) => void;
   setTv: (v: boolean) => void;
   setHudMode: (v: HudMode) => void;
+  setCameraMode: (v: CameraMode) => void;
+  setSpotlight: (v: { agentId: string; shot: string; reason: string } | null) => void;
   cycleHud: () => void;
   setUiScale: (v: number) => void;
   select: (id: string | null) => void;
@@ -121,6 +128,10 @@ export const useStore = create<State>((set, get) => ({
   focus: null,
   autoCamera: true,
   tvEnabled: true,
+  cameraMode: readLS<CameraMode>('axe.cameraMode', 'director', (r) =>
+    ['director', 'follow', 'manual'].includes(r) ? (r as CameraMode) : null,
+  ),
+  spotlight: null,
   hudMode: readLS<HudMode>('axe.hudMode', 'full', (r) => (HUD_MODES.includes(r as HudMode) ? (r as HudMode) : null)),
   uiScale: readLS<number>('axe.uiScale', 1, (r) => {
     const n = Number(r);
@@ -133,6 +144,11 @@ export const useStore = create<State>((set, get) => ({
 
   setAutoCamera: (v) => set({ autoCamera: v }),
   setTv: (v) => set({ tvEnabled: v }),
+  setCameraMode: (v) => {
+    writeLS('axe.cameraMode', v);
+    set({ cameraMode: v, autoCamera: v !== 'manual', spotlight: v === 'manual' ? null : get().spotlight });
+  },
+  setSpotlight: (v) => set({ spotlight: v ? { ...v, at: Date.now() } : null }),
   setHudMode: (v) => {
     writeLS('axe.hudMode', v);
     set({ hudMode: v });
@@ -236,7 +252,7 @@ export const useStore = create<State>((set, get) => ({
         });
         break;
       case 'CAMERA_FOCUS': {
-        if (!s.autoCamera) break;
+        if (s.cameraMode === 'manual') break;
         set({ focus: { ...e.payload, at: Date.now() } });
         break;
       }

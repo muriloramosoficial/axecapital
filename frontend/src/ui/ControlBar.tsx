@@ -7,8 +7,8 @@ const REGIMES: MarketRegime[] = ['TRENDING', 'RANGING', 'HIGH_VOLATILITY', 'LOW_
 
 export function ControlBar({ onToggleTv }: { onToggleTv: () => void }) {
   const config = useStore((s) => s.config);
-  const autoCamera = useStore((s) => s.autoCamera);
-  const setAutoCamera = useStore((s) => s.setAutoCamera);
+  const cameraMode = useStore((s) => s.cameraMode);
+  const setCameraMode = useStore((s) => s.setCameraMode);
   const tvEnabled = useStore((s) => s.tvEnabled);
 
   return (
@@ -68,17 +68,34 @@ export function ControlBar({ onToggleTv }: { onToggleTv: () => void }) {
 
       <div className="mx-1 h-6 w-px bg-white/10" />
 
-      <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400">
-        <input type="checkbox" checked={autoCamera} onChange={(e) => setAutoCamera(e.target.checked)} className="accent-emerald-400" />
-        Cinematic camera
-      </label>
+      <div className="flex items-center gap-1 rounded-md border border-white/10 bg-black/30 p-1">
+        <span className="px-1.5 text-[9px] uppercase tracking-[0.18em] text-slate-500">Câmera</span>
+        {(
+          [
+            ['director', '🎬 Direção', 'Roteiro cinematográfico: corta sozinha entre planos e mesas'],
+            ['follow', '🎯 Eventos', 'Só aproxima quando acontece algo importante'],
+            ['manual', '🖐 Manual', 'Você controla: arrastar = orbitar, scroll = zoom'],
+          ] as const
+        ).map(([id, label, title]) => (
+          <button
+            key={id}
+            title={title}
+            onClick={() => setCameraMode(id)}
+            className={`rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition ${
+              cameraMode === id ? 'bg-emerald-400/20 text-emerald-300' : 'text-slate-400 hover:text-slate-100'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400">
         <input type="checkbox" checked={tvEnabled} onChange={() => onToggleTv()} className="accent-emerald-400" />
         TradingView wall
       </label>
 
       <div className="ml-auto flex items-center gap-2 pr-1 text-[9px] uppercase tracking-[0.18em] text-slate-500">
-        <span>drag = orbit · scroll = zoom · click an agent to inspect</span>
+        <span>arraste para assumir a câmera (volta sozinha em 25s) · H esconde a HUD</span>
       </div>
     </div>
   );

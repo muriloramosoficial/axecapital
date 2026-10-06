@@ -26,6 +26,27 @@ const PRESETS: Record<string, { label: string; baseUrl: string; apiKey: string; 
     model: 'gpt-4o-mini',
     hint: 'Precisa de uma API key válida da OpenAI.',
   },
+  nvidia: {
+    label: 'NVIDIA NIM (build.nvidia.com)',
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    apiKey: '',
+    model: 'meta/llama-3.3-70b-instruct',
+    hint: 'Use a chave que começa com nvapi-…. A Base URL precisa terminar em /v1. Clique em “Listar modelos” para pegar o id exato (ex.: nvidia/llama-3.3-nemotron-super-49b-v1).',
+  },
+  groq: {
+    label: 'Groq',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKey: '',
+    model: 'llama-3.3-70b-versatile',
+    hint: 'Chave gsk_…. Respostas muito rápidas, ótimo para 100x de velocidade.',
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    model: 'meta-llama/llama-3.3-70b-instruct',
+    hint: 'Chave sk-or-…. Dá acesso a dezenas de modelos com um único endpoint.',
+  },
   custom: {
     label: 'Provider personalizado',
     baseUrl: '',
@@ -68,11 +89,11 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
       })
       .catch(() => setStatus({ connected: false, error: 'ponte offline' }));
 
-  const connect = async () => {
+  const connect = async (paper = false) => {
     setConnecting(true);
     setChecks(null);
     try {
-      const r = await api.mt5Connect();
+      const r = await api.mt5Connect(paper);
       setChecks(r.checks);
       setStatus({ connected: r.ok, account: r.account, bridgeUrl: r.bridgeUrl, error: r.ok ? undefined : 'verificação falhou' });
     } catch (e: any) {
@@ -83,6 +104,15 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
   };
 
   const save = async (patch: Partial<AIConfig>) => setAi(await api.setAiConfig(patch));
+
+  /** Valores atuais do formulário — usados para testar sem precisar salvar antes. */
+  const draft = (): Partial<AIConfig> => ({
+    baseUrl: ai?.baseUrl ?? '',
+    apiKey: ai?.apiKey ?? '',
+    model: ai?.model ?? '',
+    temperature: ai?.temperature,
+    maxTokens: ai?.maxTokens,
+  });
 
   return (
     <Modal
@@ -124,9 +154,18 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
               lista os instrumentos dela e envia as ordens por ela.
             </p>
 
-            <button className={`btn w-full justify-center ${mt5Connected ? '' : 'btn-accent'}`} disabled={connecting} onClick={connect}>
-              {connecting ? 'Verificando terminal…' : '🔌 Conectar MT5 (verificar e ativar live)'}
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button className="btn justify-center" disabled={connecting} onClick={() => connect(true)}>
+                {connecting ? 'Verificando…' : '📡 Dados reais · ordens em papel'}
+              </button>
+              <button className={`btn justify-center ${mt5Connected ? '' : 'btn-accent'}`} disabled={connecting} onClick={() => connect(false)}>
+                {connecting ? 'Verificando…' : '🔌 Conectar live (envia ordens)'}
+              </button>
+            </div>
+            <p className="text-[10px] leading-relaxed text-slate-500">
+              <b>Dados reais · ordens em papel</b>: puxa cotações, símbolos e saldo da sua conta logada, mas as execuções
+              continuam simuladas — ideal para transmitir sem risco. <b>Live</b> roteia as ordens para o terminal.
+            </p>
 
             {checks && (
               <div className="space-y-1 rounded-md border border-white/8 bg-black/30 p-2">
@@ -262,7 +301,7 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{PRESETS[ai?.provider ?? 'lmstudio'].hint}</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{(PRESETS[ai?.provider ?? 'lmstudio'] ?? PRESETS.custom).hint}</p>
             </div>
 
             <div>
@@ -318,9 +357,9 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
                   setBusy(true);
                   setMsg('');
                   try {
-                    const r = await api.aiModels();
+                    const r = await api.aiModels(draft());
                     setModels(r.models);
-                    setMsg(r.models.length ? `${r.models.length} modelos encontrados` : 'provider respondeu, mas sem modelos');
+                    setMsg(r.models.length ? `✓ ${r.models.length} modelos encontrados no provider` : 'provider respondeu, mas não listou modelos');
                   } catch (e: any) {
                     setMsg(`✕ ${e.message ?? 'não consegui falar com o provider'}`);
                   } finally {
@@ -337,8 +376,8 @@ export function SettingsModal({ onClose, initialTab = 'mt5' }: { onClose: () => 
                   setBusy(true);
                   setMsg('');
                   try {
-                    const r = await api.aiTest();
-                    setMsg(r.ok ? `✓ ${r.text}` : `✕ ${r.error}`);
+                    const r = await api.aiTest(draft());
+                    setMsg(r.ok ? `✓ ${r.text}${r.ms ? `  (${(r.ms / 1000).toFixed(1)}s)` : ''}` : `✕ ${r.error}`);
                   } catch (e: any) {
                     setMsg(`✕ ${e.message}`);
                   } finally {

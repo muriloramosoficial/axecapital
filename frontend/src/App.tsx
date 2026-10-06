@@ -11,6 +11,7 @@ import { SettingsModal } from './ui/SettingsModal';
 import { BrainModal } from './ui/BrainModal';
 import { ModeNotice } from './ui/ModeNotice';
 import { HudControls } from './ui/HudControls';
+import { SpotlightCard } from './ui/SpotlightCard';
 import { TradingViewWidget } from './three/TradingViewScreen';
 import { connect, useStore } from './state/store';
 
@@ -105,6 +106,7 @@ export default function App() {
         </div>
       )}
 
+      {showHud && <SpotlightCard />}
       {showHud && <ModeNotice onOpenSettings={() => setSettings('mt5')} />}
 
       {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}

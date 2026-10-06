@@ -188,7 +188,7 @@ export interface SymbolInfo {
 
 export interface AIConfig {
   enabled: boolean;
-  provider: 'lmstudio' | 'ollama' | 'openai' | 'custom';
+  provider: 'lmstudio' | 'ollama' | 'openai' | 'nvidia' | 'groq' | 'openrouter' | 'custom';
   baseUrl: string;
   apiKey: string;
   model: string;

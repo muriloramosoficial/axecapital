@@ -2,8 +2,8 @@ import type { AgentRole } from '../core/types.js';
 
 export interface AIConfig {
   enabled: boolean;
-  /** 'lmstudio' | 'ollama' | 'openai' | 'custom' — all OpenAI-compatible /chat/completions */
-  provider: 'lmstudio' | 'ollama' | 'openai' | 'custom';
+  /** all OpenAI-compatible /chat/completions endpoints */
+  provider: 'lmstudio' | 'ollama' | 'openai' | 'nvidia' | 'groq' | 'openrouter' | 'custom';
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -22,6 +22,47 @@ export const defaultAIConfig = (): AIConfig => ({
   maxTokens: 160,
   timeoutMs: 12000,
 });
+
+/**
+ * Accepts anything the user pasted and turns it into a usable OpenAI-style
+ * base URL: trims spaces/quotes, drops a trailing slash or /chat/completions
+ * and appends /v1 when the host clearly needs it.
+ */
+export function normalizeBaseUrl(raw: string): string {
+  let url = String(raw ?? '').trim().replace(/^['"]|['"]$/g, '');
+  if (!url) return url;
+  if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+  url = url.replace(/\/+$/, '');
+  url = url.replace(/\/(chat\/completions|completions|models)$/i, '');
+  if (!/\/v\d+$/.test(url) && /(api\.openai\.com|integrate\.api\.nvidia\.com|api\.groq\.com\/openai|openrouter\.ai\/api|127\.0\.0\.1:1234|localhost:1234|:11434)$/i.test(url)) {
+    url = `${url}/v1`;
+  }
+  return url;
+}
+
+async function describe(res: Response): Promise<string> {
+  let body = '';
+  try {
+    body = (await res.text()).slice(0, 400);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const json = JSON.parse(body);
+    body = json?.error?.message ?? json?.detail ?? json?.message ?? body;
+  } catch {
+    /* plain text */
+  }
+  const hint =
+    res.status === 401 || res.status === 403
+      ? ' — verifique a API key (NVIDIA usa chaves nvapi-…)'
+      : res.status === 404
+        ? ' — verifique a Base URL (ela deve terminar em /v1) e o nome do modelo'
+        : res.status === 422 || res.status === 400
+          ? ' — o provider recusou o payload (normalmente nome de modelo inválido)'
+          : '';
+  return `HTTP ${res.status} ${res.statusText}${body ? ` · ${body}` : ''}${hint}`;
+}
 
 export interface AIAnalysis {
   score: number; // 0..100
@@ -46,6 +87,9 @@ export class AIProviderClient {
 
   update(patch: Partial<AIConfig>) {
     this.config = { ...this.config, ...patch };
+    if (patch.baseUrl !== undefined) this.config.baseUrl = normalizeBaseUrl(this.config.baseUrl);
+    if (patch.model !== undefined) this.config.model = String(this.config.model ?? '').trim();
+    if (patch.apiKey !== undefined) this.config.apiKey = String(this.config.apiKey ?? '').trim();
     return this.config;
   }
 
@@ -53,41 +97,73 @@ export class AIProviderClient {
     return this.config.enabled && !!this.config.baseUrl && !!this.config.model;
   }
 
-  async listModels(): Promise<string[]> {
-    const res = await fetch(`${this.config.baseUrl.replace(/\/$/, '')}/models`, {
-      headers: this.headers(),
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json: any = await res.json();
-    return (json.data || json.models || []).map((m: any) => m.id || m.name).filter(Boolean);
+  update_url() {
+    this.config.baseUrl = normalizeBaseUrl(this.config.baseUrl);
   }
 
-  private headers() {
-    return {
-      'content-type': 'application/json',
-      authorization: `Bearer ${this.config.apiKey || 'none'}`,
-    };
+  /** Effective config: stored config + an optional one-off override (form values). */
+  private effective(override?: Partial<AIConfig>): AIConfig {
+    const merged = { ...this.config, ...(override ?? {}) } as AIConfig;
+    if (!override?.apiKey || override.apiKey === '***') merged.apiKey = this.config.apiKey;
+    merged.baseUrl = normalizeBaseUrl(merged.baseUrl);
+    merged.model = String(merged.model ?? '').trim();
+    return merged;
   }
 
-  async chat(system: string, user: string): Promise<string> {
-    const res = await fetch(`${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: this.headers(),
-      signal: AbortSignal.timeout(this.config.timeoutMs),
-      body: JSON.stringify({
-        model: this.config.model,
-        temperature: this.config.temperature,
-        max_tokens: this.config.maxTokens,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
-    if (!res.ok) throw new Error(`AI HTTP ${res.status}`);
+  async listModels(override?: Partial<AIConfig>): Promise<string[]> {
+    const cfg = this.effective(override);
+    if (!cfg.baseUrl) throw new Error('informe a Base URL do provider (ex.: https://integrate.api.nvidia.com/v1)');
+    let res: Response;
+    try {
+      res = await fetch(`${cfg.baseUrl}/models`, {
+        headers: this.headers(cfg),
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch (err: any) {
+      throw new Error(`não consegui falar com ${cfg.baseUrl} (${err?.cause?.code ?? err?.name ?? 'erro de rede'})`);
+    }
+    if (!res.ok) throw new Error(await describe(res));
     const json: any = await res.json();
-    return json.choices?.[0]?.message?.content ?? '';
+    const list = json.data || json.models || [];
+    return list.map((m: any) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
+  }
+
+  private headers(cfg: AIConfig = this.config) {
+    const h: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json' };
+    if (cfg.apiKey) h.authorization = `Bearer ${cfg.apiKey}`;
+    return h;
+  }
+
+  async chat(system: string, user: string, override?: Partial<AIConfig>): Promise<string> {
+    const cfg = this.effective(override);
+    if (!cfg.baseUrl) throw new Error('informe a Base URL do provider');
+    if (!cfg.model) throw new Error('informe o nome do modelo (use “Listar modelos” para descobrir)');
+    let res: Response;
+    try {
+      res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: this.headers(cfg),
+        signal: AbortSignal.timeout(Math.max(cfg.timeoutMs, override ? 45000 : 0)),
+        body: JSON.stringify({
+          model: cfg.model,
+          temperature: cfg.temperature,
+          max_tokens: cfg.maxTokens,
+          stream: false,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+      });
+    } catch (err: any) {
+      const reason = err?.name === 'TimeoutError' ? 'tempo esgotado' : err?.cause?.code ?? err?.name ?? 'erro de rede';
+      throw new Error(`não consegui falar com ${cfg.baseUrl} (${reason})`);
+    }
+    if (!res.ok) throw new Error(await describe(res));
+    const json: any = await res.json();
+    const choice = json.choices?.[0]?.message;
+    // alguns modelos NIM/Nemotron devolvem o texto em reasoning_content
+    return choice?.content || choice?.reasoning_content || json.choices?.[0]?.text || '';
   }
 
   /**
