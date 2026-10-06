@@ -35,7 +35,7 @@ O instalador puxa **somente a branch `arena/8d46e70a-axecapital`** (nada de merg
 2. clona a branch em `%USERPROFILE%\AxeCapital`;
 3. instala as dependências do engine e da interface e compila tudo;
 4. instala os requisitos da ponte MetaTrader 5;
-5. cria os atalhos **“Axe Capital”** (área de trabalho), `Start-AxeCapital.cmd` e `Update-AxeCapital.cmd`;
+5. cria na **área de trabalho** o arquivo clicável **`Axe Capital.bat`** (sobe tudo com 2 cliques) e o **`Axe Capital - Atualizar.bat`**, além do atalho `Axe Capital.lnk`, do `Start-AxeCapital.cmd` e do `Update-AxeCapital.cmd` dentro da pasta;
 6. sobe a ponte MT5 (se houver Python), o engine em `http://localhost:8787` e abre o navegador.
 
 ### O mesmo comando também ATUALIZA
@@ -391,6 +391,37 @@ Setups promovidos entram no pipeline: quando uma oportunidade está alinhada ao 
 do ativo, ela ganha bônus de confiança (`Opportunity.setup`). O painel **Research lab** na coluna
 direita mostra campeões (IS / OOS / LIVE), candidatos em teste e as descobertas narradas pelos
 agentes. API: `GET /api/lab`; eventos: `LAB_EXPERIMENT`, `SETUP_PROMOTED`.
+
+## 9.3 News wire — crawler de notícias nas telas
+
+Um crawler no backend (`backend/src/engines/news-crawler.ts`) lê feeds RSS financeiros a cada
+3 minutos — FXStreet, Investing, Investing FX, DailyFX, CNBC, MarketWatch e Google News — e
+classifica cada manchete por **moeda** (USD, EUR, GBP, JPY…) e **impacto** (HIGH/MEDIUM/LOW) a
+partir de palavras-chave. Sem internet, ele cai automaticamente para manchetes sintéticas
+marcadas como `SIM WIRE`, então as telas nunca ficam vazias.
+
+Onde isso aparece:
+
+- **parede central** — onde antes havia um telão só: metade é o gráfico ao vivo (TradingView) e a
+  outra metade é uma **página de notícias** renderizada como um portal financeiro (barra de
+  navegador, manchete principal, foto/minigráfico, colunas de texto e tira de "últimas");
+- **painéis laterais da parede** — terminais `NEWS WIRE` com as manchetes cruas e um
+  **heatmap** de variação dos pares, cara de pregão;
+- **mesas de Macro/News** — o monitor central vira o wire e um dos laterais abre a página;
+- **todas as mesas** — o monitor central agora é sempre o **gráfico do ativo do agente**;
+- **painel "News wire"** na coluna esquerda da UI, com link clicável para a matéria.
+
+API: `GET /api/wire` e `POST /api/wire/refresh`.
+
+## 9.4 Produção ao vivo: placar e legendas
+
+- **Placar rotativo** (`frontend/src/ui/Scoreboard.tsx`) — troca de aba sozinho a cada 10s com
+  barra de progresso: *P&L do dia*, *precisão*, *produção* (análises/aprovações/vetos) e
+  *setups do lab*. Clicar numa linha seleciona o agente. Aparece flutuando no modo
+  **broadcast** e compacto na coluna esquerda no modo **full**.
+- **Legendas** (`frontend/src/ui/Captions.tsx`) — toda fala da mesa vira legenda embaixo da
+  tela, com nome, função, cor do tom e efeito de digitação. Tecla **C** liga/desliga
+  (persistido em `axe.captions`).
 
 ## 10. Modo transmissão (live 24h no YouTube)
 

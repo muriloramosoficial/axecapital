@@ -218,6 +218,38 @@ pause
 "@ | Set-Content -Path $updater -Encoding ASCII
 
 $desktop = [Environment]::GetFolderPath('Desktop')
+
+# .bat clicável direto na área de trabalho (não depende de atalho .lnk)
+try {
+    $deskBat = Join-Path $desktop 'Axe Capital.bat'
+@"
+@echo off
+title Axe Capital - Autonomous Forex Desk
+cd /d "$InstallDir"
+if not exist "$InstallDir\scripts\start.ps1" (
+    echo Instalacao nao encontrada em $InstallDir
+    echo Rode novamente o comando de instalacao.
+    pause
+    exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "$InstallDir\scripts\start.ps1" %*
+if errorlevel 1 pause
+"@ | Set-Content -Path $deskBat -Encoding ASCII
+    Ok "arquivo clicavel criado: $deskBat"
+} catch { Warn 'não foi possível criar o .bat na área de trabalho' }
+
+# .bat de atualização, também na área de trabalho
+try {
+    $deskUpd = Join-Path $desktop 'Axe Capital - Atualizar.bat'
+@"
+@echo off
+title Axe Capital - Atualizar
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/$Branch/scripts/install.ps1 | iex"
+pause
+"@ | Set-Content -Path $deskUpd -Encoding ASCII
+    Ok 'atualizador na área de trabalho ok'
+} catch { Warn 'não foi possível criar o atualizador na área de trabalho' }
+
 try {
     $ws = New-Object -ComObject WScript.Shell
     $lnk = $ws.CreateShortcut((Join-Path $desktop 'Axe Capital.lnk'))
@@ -234,7 +266,7 @@ Write-Host "`n══════════════════════
 Ok $(if ($isUpdate) { if ($codeChanged) { 'Atualização concluída' } else { 'Nada a atualizar — tudo pronto' } } else { 'Instalação concluída' })
 Say "pasta        : $InstallDir" DarkGray
 Say "suas configs : $cfg $(if (Test-Path $cfg) { '(preservado)' } else { '(criado no primeiro uso)' })" DarkGray
-Say "iniciar      : atalho 'Axe Capital' ou $launcher" DarkGray
+Say "iniciar      : 2 cliques em 'Axe Capital.bat' na área de trabalho (ou $launcher)" DarkGray
 Say "atualizar    : Update-AxeCapital.cmd (ou rode este mesmo comando de novo)" DarkGray
 Say "navegador    : http://localhost:8787" DarkGray
 Say "ponte MT5    : http://127.0.0.1:8788  (abra o MetaTrader 5 e faça login antes)" DarkGray

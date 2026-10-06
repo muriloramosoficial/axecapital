@@ -4,9 +4,11 @@ import { TopHUD } from './ui/TopHUD';
 import { ControlBar } from './ui/ControlBar';
 import { PipelinePanel } from './ui/PipelinePanel';
 import { LabPanel } from './ui/LabPanel';
+import { Scoreboard } from './ui/Scoreboard';
+import { Captions } from './ui/Captions';
 import { CommsFeed } from './ui/CommsFeed';
 import { TradeJournal } from './ui/TradeJournal';
-import { AgentInspector, MarketRail, NewsPanel } from './ui/SidePanels';
+import { AgentInspector, MarketRail, NewsPanel, WirePanel } from './ui/SidePanels';
 import { HireAgentModal } from './ui/HireAgentModal';
 import { SettingsModal } from './ui/SettingsModal';
 import { BrainModal } from './ui/BrainModal';
@@ -59,10 +61,12 @@ export default function App() {
           <div className="flex min-h-0 flex-1 gap-2">
             {/* left column */}
             {showPanels && (
-              <div className="pointer-events-auto hidden min-h-0 w-[clamp(250px,20vw,340px)] flex-col gap-2 overflow-hidden lg:flex">
+              <div className="pointer-events-auto hidden min-h-0 w-[clamp(250px,20vw,340px)] flex-col gap-2 overflow-y-auto pr-0.5 lg:flex">
                 <PipelinePanel />
                 <NewsPanel />
+                <WirePanel />
                 <AgentInspector onOpenChart={setChartSymbol} onOpenBrain={setBrainAgent} />
+                <Scoreboard compact />
               </div>
             )}
 
@@ -70,7 +74,7 @@ export default function App() {
 
             {/* right column */}
             {showPanels && (
-              <div className="pointer-events-auto hidden min-h-0 w-[clamp(270px,22vw,360px)] flex-col gap-2 overflow-hidden xl:flex">
+              <div className="pointer-events-auto hidden min-h-0 w-[clamp(270px,22vw,360px)] flex-col gap-2 overflow-y-auto pr-0.5 xl:flex">
                 <CommsFeed />
                 <LabPanel />
                 <TradeJournal />
@@ -108,6 +112,13 @@ export default function App() {
         </div>
       )}
 
+      {/* placar rotativo + legendas: a cara da transmissão */}
+      {hudMode === 'broadcast' && (
+        <div className="pointer-events-auto absolute bottom-[84px] left-3 z-30">
+          <Scoreboard />
+        </div>
+      )}
+      {hudMode !== 'clean' && <Captions />}
       {showHud && <SpotlightCard />}
       {showHud && <ModeNotice onOpenSettings={() => setSettings('mt5')} />}
 

@@ -11,6 +11,7 @@ import { agents } from './agents/registry.js';
 import { DESKS, ROLE_META } from './agents/office-layout.js';
 import { ai } from './ai/provider.js';
 import { lab } from './engines/research-lab.js';
+import { wire } from './engines/news-crawler.js';
 import { brains } from './agents/learning.js';
 import type { AgentRole, MarketRegime } from './core/types.js';
 
@@ -24,6 +25,11 @@ const api = express.Router();
 api.get('/health', (_req, res) => res.json({ ok: true, mode: sim.config.executionMode, mt5: sim.mt5Connected }));
 api.get('/snapshot', (_req, res) => res.json(sim.snapshot()));
 api.get('/layout', (_req, res) => res.json({ desks: DESKS, roleMeta: ROLE_META }));
+api.get('/wire', (_req, res) => res.json(wire.summary(40)));
+api.post('/wire/refresh', async (_req, res) => {
+  await wire.refresh();
+  res.json(wire.summary(40));
+});
 api.get('/events', (_req, res) => res.json(bus.recent(150)));
 
 // ── symbols: MT5 account symbols when the terminal is up, simulation otherwise
@@ -300,6 +306,9 @@ wss.on('connection', (ws) => {
 });
 
 // market frames at ~8 Hz for every client
+let wireVersion = -1;
+wire.start();
+
 setInterval(() => {
   const frame = {
     simNow: sim.simNow,
@@ -313,6 +322,7 @@ setInterval(() => {
     config: sim.config,
     ai: { enabled: ai.config.enabled, provider: ai.config.provider, model: ai.config.model },
     lab: lab.summary(),
+    wire: wireVersion !== wire.version ? ((wireVersion = wire.version), wire.summary()) : undefined,
     agents: agents.list().map((a) => ({
       id: a.id,
       state: a.state,

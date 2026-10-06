@@ -17,7 +17,10 @@ export type ScreenKind =
   | 'TERMINAL'
   | 'EQUITY'
   | 'BACKTEST'
-  | 'OPTIMIZER';
+  | 'OPTIMIZER'
+  | 'NEWSWIRE'
+  | 'NEWSPAGE'
+  | 'HEATMAP';
 
 /** espaço lógico de desenho (o canvas é SCALE vezes maior, para nitidez) */
 const W = 512;
@@ -127,6 +130,15 @@ export function updateScreens(now: number) {
         break;
       case 'OPTIMIZER':
         paintOptimizer(ctx);
+        break;
+      case 'NEWSWIRE':
+        paintNewswire(ctx);
+        break;
+      case 'NEWSPAGE':
+        paintNewspage(ctx);
+        break;
+      case 'HEATMAP':
+        paintHeatmap(ctx);
         break;
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -629,4 +641,200 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
     }
   }
   ctx.fillText(line, x, y + lines * lh);
+}
+
+
+// ─────────────────────────────────────────────────── news wire / webpage ──
+
+const IMPACT_COLOR: Record<string, string> = { HIGH: RED, MEDIUM: AMBER, LOW: DIM };
+
+function ago(at: number) {
+  const m = Math.max(0, Math.round((Date.now() - at) / 60000));
+  if (m < 1) return 'agora';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
+}
+
+/** Terminal de manchetes — o que o crawler trouxe dos feeds. */
+function paintNewswire(ctx: CanvasRenderingContext2D) {
+  const wire = useStore.getState().wire;
+  const items = wire?.headlines ?? [];
+
+  ctx.fillStyle = '#0a1018';
+  ctx.fillRect(8, 8, W - 16, 30);
+  ctx.fillStyle = '#e9f1fb';
+  ctx.font = 'bold 15px Inter, system-ui, sans-serif';
+  ctx.fillText('NEWS WIRE', 18, 29);
+  ctx.font = '11px Inter, system-ui, sans-serif';
+  ctx.fillStyle = wire?.online ? GREEN : AMBER;
+  ctx.fillText(wire?.online ? '● CRAWLER ONLINE' : '○ MODO OFFLINE', 118, 28);
+  ctx.fillStyle = DIM;
+  ctx.textAlign = 'right';
+  ctx.fillText(`${items.length} manchetes · ${wire ? ago(wire.lastFetch) : '—'}`, W - 18, 28);
+  ctx.textAlign = 'left';
+
+  let y = 54;
+  for (const h of items.slice(0, 9)) {
+    ctx.fillStyle = IMPACT_COLOR[h.impact] ?? DIM;
+    ctx.fillRect(14, y - 9, 3, 22);
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillStyle = DIM;
+    ctx.fillText(`${h.source.toUpperCase()} · ${ago(h.at)}`, 24, y - 1);
+    if (h.currencies.length) {
+      ctx.fillStyle = BLUE;
+      ctx.fillText(h.currencies.join(' '), 24 + 150, y - 1);
+    }
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.fillStyle = h.impact === 'HIGH' ? '#ffd9dd' : '#cdd9e8';
+    const line = wrapLines(ctx, h.title, W - 50)[0] ?? h.title;
+    ctx.fillText(line, 24, y + 13);
+    y += 30;
+    if (y > H - 14) break;
+  }
+  if (!items.length) {
+    ctx.fillStyle = DIM;
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.fillText('aguardando o crawler de notícias…', 24, 80);
+  }
+}
+
+/** "Página de notícias" — layout de portal financeiro com a manchete do momento. */
+function paintNewspage(ctx: CanvasRenderingContext2D) {
+  const wire = useStore.getState().wire;
+  const items = wire?.headlines ?? [];
+  const lead = items.find((h) => h.impact === 'HIGH') ?? items[0];
+
+  // barra do navegador
+  ctx.fillStyle = '#121923';
+  ctx.fillRect(0, 0, W, 26);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(16 + i * 14, 13, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = '#1b2430';
+  ctx.fillRect(66, 6, W - 82, 15);
+  ctx.fillStyle = DIM;
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillText(`https://wire.axecapital.io/markets/${(lead?.source ?? 'live').toLowerCase().replace(/\s+/g, '-')}`, 74, 17);
+
+  // página clara, como um portal de verdade
+  ctx.fillStyle = '#f4f6f9';
+  ctx.fillRect(0, 26, W, H - 26);
+  ctx.fillStyle = '#0d1826';
+  ctx.fillRect(0, 26, W, 24);
+  ctx.fillStyle = '#f8fafc';
+  ctx.font = 'bold 13px Georgia, serif';
+  ctx.fillText('AXE WIRE', 14, 43);
+  ctx.font = '9px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#93a7bd';
+  ctx.fillText('MARKETS   FX   RATES   COMMODITIES   CENTRAL BANKS', 92, 42);
+  ctx.fillStyle = RED;
+  ctx.fillRect(0, 50, W, 2);
+
+  if (lead) {
+    ctx.fillStyle = '#b91c1c';
+    ctx.font = 'bold 9px Inter, system-ui, sans-serif';
+    ctx.fillText(`${lead.impact === 'HIGH' ? 'URGENTE' : 'MERCADOS'} · ${lead.source.toUpperCase()} · ${ago(lead.at)}`, 14, 68);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 19px Georgia, serif';
+    const lines = wrapLines(ctx, lead.title, W - 180).slice(0, 3);
+    lines.forEach((l, i) => ctx.fillText(l, 14, 92 + i * 23));
+
+    // "foto" da matéria: mini gráfico
+    const bx = W - 152;
+    ctx.fillStyle = '#0b1420';
+    ctx.fillRect(bx, 60, 138, 92);
+    const sym = lead.currencies[0] === 'EUR' ? 'EURUSD' : lead.currencies[0] === 'JPY' ? 'USDJPY' : 'GBPUSD';
+    const arr = (history.get(sym) ?? []).slice(-70);
+    if (arr.length > 2) {
+      const mn = Math.min(...arr);
+      const mx = Math.max(...arr);
+      ctx.strokeStyle = arr[arr.length - 1] >= arr[0] ? GREEN : RED;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      arr.forEach((v, i) => {
+        const x = bx + 6 + (i / (arr.length - 1)) * 126;
+        const y = 146 - ((v - mn) / (mx - mn || 1)) * 78;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8fa3b8';
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillText(sym, bx + 6, 72);
+
+    // corpo em duas colunas
+    ctx.fillStyle = '#475569';
+    ctx.font = '10px Georgia, serif';
+    const body = wrapLines(
+      ctx,
+      `Mesas de câmbio acompanham o desdobramento da notícia. O fluxo institucional reagiu nos primeiros minutos e a volatilidade implícita subiu nas opções de curto prazo. Operadores recalibram exposição enquanto o mercado precifica o próximo passo dos bancos centrais.`,
+      218,
+    );
+    body.slice(0, 6).forEach((l, i) => ctx.fillText(l, 14, 172 + i * 13));
+    body.slice(6, 12).forEach((l, i) => ctx.fillText(l, 248, 172 + i * 13));
+  }
+
+  // tira de manchetes relacionadas
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(0, H - 56, W, 56);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 9px Inter, system-ui, sans-serif';
+  ctx.fillText('ÚLTIMAS', 14, H - 42);
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  items.slice(1, 4).forEach((h, i) => {
+    ctx.fillStyle = IMPACT_COLOR[h.impact] ?? DIM;
+    ctx.fillRect(14, H - 34 + i * 12, 3, 8);
+    ctx.fillStyle = '#334155';
+    ctx.fillText(wrapLines(ctx, h.title, W - 60)[0] ?? h.title, 24, H - 27 + i * 12);
+  });
+}
+
+/** Mapa de calor de força das moedas — cara de bolsa de valores. */
+function paintHeatmap(ctx: CanvasRenderingContext2D) {
+  const st = useStore.getState();
+  const prices = Object.values(st.prices);
+  ctx.fillStyle = '#e9f1fb';
+  ctx.font = 'bold 13px Inter, system-ui, sans-serif';
+  ctx.fillText('MARKET HEATMAP', 16, 28);
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillStyle = DIM;
+  ctx.fillText('variação do dia', 150, 27);
+
+  const cols = 4;
+  const cw = (W - 32) / cols;
+  const ch = 52;
+  prices.slice(0, 12).forEach((p, i) => {
+    const x = 16 + (i % cols) * cw;
+    const y = 42 + Math.floor(i / cols) * (ch + 6);
+    const chg = p.change ?? 0;
+    const intensity = Math.min(1, Math.abs(chg) / 0.6);
+    ctx.fillStyle = chg >= 0 ? `rgba(46,224,138,${0.12 + intensity * 0.55})` : `rgba(255,77,94,${0.12 + intensity * 0.55})`;
+    ctx.fillRect(x, y, cw - 8, ch);
+    ctx.fillStyle = '#eaf2fb';
+    ctx.font = 'bold 13px Inter, system-ui, sans-serif';
+    ctx.fillText(p.symbol, x + 10, y + 22);
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.fillStyle = chg >= 0 ? '#d7ffe9' : '#ffdde1';
+    ctx.fillText(`${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`, x + 10, y + 40);
+  });
+}
+
+/** quebra o texto em linhas, sem desenhar */
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const words = text.split(' ');
+  const out: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxW && line) {
+      out.push(line);
+      line = word;
+    } else line = test;
+  }
+  if (line) out.push(line);
+  return out;
 }

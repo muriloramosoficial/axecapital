@@ -2,6 +2,44 @@ import { useStore } from '../state/store';
 import { api } from '../lib/api';
 import { countdown, STATE_COLOR } from '../lib/format';
 
+/** Manchetes vindas do crawler de notícias (feeds reais quando há internet). */
+export function WirePanel() {
+  const wire = useStore((s) => s.wire);
+  if (!wire) return null;
+  const color = (i: string) => (i === 'HIGH' ? '#f05252' : i === 'MEDIUM' ? '#f5a524' : '#64748b');
+  return (
+    <div className="glass max-h-[26vh] shrink-0 overflow-y-auto rounded-lg p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="panel-title">News wire</span>
+        <span className={`chip ${wire.online ? 'border-emerald-400/30 text-emerald-300' : 'border-amber-400/30 text-amber-300'}`}>
+          {wire.online ? 'crawler on' : 'offline'}
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {wire.headlines.slice(0, 8).map((h) => (
+          <a
+            key={h.id}
+            href={h.url || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="flex gap-2 hover:opacity-80"
+          >
+            <span className="mt-[3px] h-3 w-[3px] shrink-0 rounded" style={{ background: color(h.impact) }} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[11px] text-slate-200">{h.title}</span>
+              <span className="text-[9px] uppercase tracking-[0.12em] text-slate-600">
+                {h.source}
+                {h.currencies.length ? ` · ${h.currencies.join(' ')}` : ''}
+              </span>
+            </span>
+          </a>
+        ))}
+        {!wire.headlines.length && <div className="text-[11px] text-slate-500">buscando manchetes…</div>}
+      </div>
+    </div>
+  );
+}
+
 export function NewsPanel() {
   const news = useStore((s) => s.news);
   const simNow = useStore((s) => s.simNow);

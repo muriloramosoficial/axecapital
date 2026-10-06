@@ -17,27 +17,22 @@ function screenPlan(desk: Desk, agent?: Agent): { kind: ScreenKind; symbol?: str
   const role = agent?.role;
   const plan: { kind: ScreenKind; symbol?: string }[] = [];
   if (desk.sector === 'LAB' || role === 'BACKTEST_ANALYST' || role === 'STRATEGY_DEVELOPER') {
-    plan.push(
-      { kind: 'EQUITY' },
-      { kind: 'BACKTEST' },
-      { kind: 'OPTIMIZER' },
-      { kind: 'CHART', symbol: sym },
-      { kind: 'TERMINAL' },
-    );
+    plan.push({ kind: 'BACKTEST' }, { kind: 'CHART', symbol: sym }, { kind: 'EQUITY' }, { kind: 'OPTIMIZER' }, { kind: 'TERMINAL' });
   } else if (desk.sector === 'EXECUTION' || role === 'TRADER') {
-    plan.push({ kind: 'EXEC' }, { kind: 'CHART', symbol: sym }, { kind: 'DOM', symbol: sym }, { kind: 'CHART', symbol: 'XAUUSD' }, { kind: 'RISK' }, { kind: 'WATCHLIST' });
+    // o gráfico do ativo operado fica sempre no monitor central da mesa
+    plan.push({ kind: 'DOM', symbol: sym }, { kind: 'CHART', symbol: sym }, { kind: 'EXEC' }, { kind: 'CHART', symbol: 'XAUUSD' }, { kind: 'RISK' }, { kind: 'WATCHLIST' });
   } else if (role === 'RISK_MANAGER' || desk.id === 'risk-1') {
-    plan.push({ kind: 'RISK' }, { kind: 'EXEC' }, { kind: 'WATCHLIST' }, { kind: 'CHART', symbol: 'DXY' });
+    plan.push({ kind: 'RISK' }, { kind: 'CHART', symbol: sym }, { kind: 'EXEC' }, { kind: 'HEATMAP' });
   } else if (role === 'PORTFOLIO_MANAGER' || desk.id === 'risk-2') {
-    plan.push({ kind: 'EXEC' }, { kind: 'WATCHLIST' }, { kind: 'RISK' }, { kind: 'CHART', symbol: 'US500' });
+    plan.push({ kind: 'EXEC' }, { kind: 'CHART', symbol: sym }, { kind: 'HEATMAP' }, { kind: 'RISK' });
   } else if (role === 'QUANT_ANALYST' || desk.id === 'research-2') {
-    plan.push({ kind: 'QUANT' }, { kind: 'TERMINAL' }, { kind: 'CHART', symbol: sym }, { kind: 'WATCHLIST' });
+    plan.push({ kind: 'QUANT' }, { kind: 'CHART', symbol: sym }, { kind: 'TERMINAL' }, { kind: 'HEATMAP' });
   } else if (role === 'MACRO_ANALYST' || role === 'NEWS_ANALYST' || desk.sector === 'NEWSROOM' || desk.id === 'research-3') {
-    plan.push({ kind: 'NEWS' }, { kind: 'CHART', symbol: 'DXY' }, { kind: 'WATCHLIST' }, { kind: 'CHART', symbol: 'US10Y' });
+    plan.push({ kind: 'NEWSWIRE' }, { kind: 'CHART', symbol: sym }, { kind: 'NEWSPAGE' }, { kind: 'NEWS' });
   } else if (role === 'TECHNICAL_ANALYST' || desk.id === 'research-1') {
-    plan.push({ kind: 'CHART', symbol: sym }, { kind: 'CHART', symbol: 'GBPUSD' }, { kind: 'TERMINAL' }, { kind: 'DOM', symbol: sym });
+    plan.push({ kind: 'DOM', symbol: sym }, { kind: 'CHART', symbol: sym }, { kind: 'CHART', symbol: 'GBPUSD' }, { kind: 'TERMINAL' });
   } else {
-    plan.push({ kind: 'CHART', symbol: sym }, { kind: 'DOM', symbol: sym }, { kind: 'WATCHLIST' }, { kind: 'NEWS' });
+    plan.push({ kind: 'WATCHLIST' }, { kind: 'CHART', symbol: sym }, { kind: 'DOM', symbol: sym }, { kind: 'NEWSWIRE' });
   }
   return plan.slice(0, desk.monitors);
 }

@@ -249,17 +249,18 @@ export function Office() {
 
   const wallScreens = useMemo(() => {
     const syms = [...(watchlist.length ? watchlist : ['EURUSD', 'GBPUSD', 'USDJPY']), 'DXY', 'US10Y', 'VIX'];
+    // esquerda = redação / notícias (crawler), direita = mercado
     const left = [
-      { kind: 'CHART', symbol: syms[0] },
-      { kind: 'CHART', symbol: syms[1] },
-      { kind: 'CHART', symbol: syms[2] },
+      { kind: 'NEWSPAGE' },
+      { kind: 'NEWSWIRE' },
       { kind: 'NEWS' },
+      { kind: 'CHART', symbol: syms[0] },
     ];
     const right = [
+      { kind: 'HEATMAP' },
+      { kind: 'NEWSWIRE' },
       { kind: 'CHART', symbol: syms[3] ?? 'DXY' },
-      { kind: 'CHART', symbol: syms[4] ?? 'US10Y' },
       { kind: 'WATCHLIST' },
-      { kind: 'RISK' },
     ];
     return { left, right };
   }, [watchlist]);
@@ -387,19 +388,20 @@ export function Office() {
         ))}
 
         {/* par central: o maior do conjunto, com o TradingView real */}
+        {/* centro: gráfico ao vivo (TradingView) + página de notícias do crawler */}
         {tvEnabled ? (
           <>
-            {/* moldura física do monitor central */}
-            <mesh position={[0, 4.22, 0.1]}>
-              <boxGeometry args={[5.42, 3.4, 0.1]} />
+            <mesh position={[-2.45, 4.32, 0.1]}>
+              <boxGeometry args={[4.7, 2.96, 0.1]} />
               <meshStandardMaterial color="#161c25" roughness={0.4} metalness={0.45} />
             </mesh>
-            <TradingViewScreen position={[0, 4.22, 0.19]} symbol={focusSymbol} width={1180} height={720} scale={0.0044} />
+            <TradingViewScreen position={[-2.45, 4.32, 0.19]} symbol={focusSymbol} width={1180} height={720} scale={0.0038} />
           </>
         ) : (
-          <WallScreen position={[0, 4.22, 0.14]} size={[5.2, 3.18]} kind="CHART" symbol={focusSymbol} />
+          <WallScreen position={[-2.45, 4.32, 0.14]} size={[4.48, 2.74]} kind="CHART" symbol={focusSymbol} />
         )}
-        <WallScreen position={[0, 1.94, 0.14]} size={[5.2, 1.34]} kind="WATCHLIST" />
+        <WallScreen position={[2.45, 4.32, 0.14]} size={[4.48, 2.74]} kind="NEWSPAGE" />
+        <WallScreen position={[0, 2.08, 0.14]} size={[9.6, 1.18]} kind="WATCHLIST" />
 
         {/* faixa de ticker sob os monitores */}
         <mesh position={[0, 0.78, 0.14]}>

@@ -38,6 +38,24 @@ const writeLS = (key: string, value: string) => {
   }
 };
 
+export interface Headline {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  at: number;
+  currencies: string[];
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
+  live: boolean;
+}
+export interface WireSummary {
+  online: boolean;
+  lastFetch: number;
+  nextFetch: number;
+  sources: { name: string; ok: boolean; items: number; error?: string }[];
+  headlines: Headline[];
+  version: number;
+}
 export interface LabChampion {
   symbol: string;
   name: string;
@@ -107,6 +125,7 @@ interface State {
   mt5Connected: boolean;
   ai: AIConfig | null;
   lab: LabSummary | null;
+  wire: WireSummary | null;
   watchlist: string[];
   focus: FocusTarget | null;
   autoCamera: boolean;
@@ -163,6 +182,7 @@ export const useStore = create<State>((set, get) => ({
   mt5Connected: false,
   ai: null,
   lab: null,
+  wire: null,
   watchlist: [],
   focus: null,
   autoCamera: true,
@@ -223,6 +243,7 @@ export const useStore = create<State>((set, get) => ({
       mt5Connected: s.mt5Connected,
       ai: s.ai,
       lab: s.lab ?? null,
+      wire: s.wire ?? null,
       watchlist: s.watchlist,
     }),
 
@@ -261,6 +282,7 @@ export const useStore = create<State>((set, get) => ({
       config: f.config,
       ai: f.ai ? ({ ...(get().ai ?? {}), ...f.ai } as any) : get().ai,
       lab: f.lab ?? get().lab,
+      wire: f.wire ?? get().wire,
       agents: dirty ? patched : prev,
     });
   },
