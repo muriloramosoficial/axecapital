@@ -36,12 +36,40 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -Er
 # as chamadas de npm são feitas via cmd.exe (npm.cmd), que não passa por policy.
 try { Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Stop } catch { }
 
+# ── log e pausa: nada de janela fechando antes de você ler o erro ────────
+$script:LogFile = Join-Path $env:TEMP ('axecapital-install-{0}.log' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+try { Start-Transcript -Path $script:LogFile -Force | Out-Null; $script:Logging = $true } catch { $script:Logging = $false }
+
+function Stop-Log { if ($script:Logging) { try { Stop-Transcript | Out-Null } catch { } ; $script:Logging = $false } }
+function Hold {
+    if ($env:AXE_NOPAUSE -eq '1') { return }
+    Write-Host ''
+    Write-Host '  ──────────────────────────────────────────────────────────────' -ForegroundColor DarkGray
+    Write-Host "  log completo: $script:LogFile" -ForegroundColor DarkGray
+    try { Read-Host '  Pressione ENTER para fechar esta janela' | Out-Null } catch { Start-Sleep -Seconds 60 }
+}
+
 function Say($msg, $color = 'Gray') { Write-Host "  $msg" -ForegroundColor $color }
 function Step($msg) { Write-Host "`n▸ $msg" -ForegroundColor Cyan }
 function Ok($msg) { Write-Host "  ✓ $msg" -ForegroundColor Green }
 function Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
-function Fail($msg) { Write-Host "`n  ✕ $msg" -ForegroundColor Red; exit 1 }
+function Fail($msg) {
+    Write-Host "`n  ✕ $msg" -ForegroundColor Red
+    Stop-Log
+    Hold
+    exit 1
+}
 function Have($cmd) { return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
+
+# qualquer erro não previsto cai aqui: mostra a mensagem, o local e espera você ler
+trap {
+    Write-Host "`n  ✕ erro inesperado: $($_.Exception.Message)" -ForegroundColor Red
+    $pos = $_.InvocationInfo.PositionMessage
+    if ($pos) { Write-Host "$pos" -ForegroundColor DarkGray }
+    Stop-Log
+    Hold
+    exit 1
+}
 
 $script:CmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
 if (-not (Test-Path $script:CmdExe)) { $script:CmdExe = 'cmd.exe' }
@@ -257,6 +285,9 @@ $launcher = Join-Path $InstallDir 'Start-AxeCapital.cmd'
 title Axe Capital - Autonomous Forex Desk
 cd /d "%~dp0"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start.ps1" %*
+echo.
+echo (janela mantida aberta para voce ler as mensagens acima)
+pause
 "@ | Set-Content -Path $launcher -Encoding ASCII
 
 $updater = Join-Path $InstallDir 'Update-AxeCapital.cmd'
@@ -283,7 +314,10 @@ if not exist "$InstallDir\scripts\start.ps1" (
     exit /b 1
 )
 powershell -NoProfile -ExecutionPolicy Bypass -File "$InstallDir\scripts\start.ps1" %*
-if errorlevel 1 pause
+echo.
+echo (janela mantida aberta para voce ler as mensagens acima)
+echo logs em: $InstallDir\data\logs
+pause
 "@ | Set-Content -Path $deskBat -Encoding ASCII
     Ok "arquivo clicavel criado: $deskBat"
 } catch { Warn 'não foi possível criar o .bat na área de trabalho' }
@@ -322,6 +356,9 @@ Say "navegador    : http://localhost:8787" DarkGray
 Say "ponte MT5    : http://127.0.0.1:8788  (abra o MetaTrader 5 e faça login antes)" DarkGray
 Say "IA local     : ⚙ Setup → AI provider → LM Studio (http://127.0.0.1:1234/v1) ou custom" DarkGray
 Write-Host "══════════════════════════════════════════════════════════════`n" -ForegroundColor DarkCyan
+
+Say "log desta instalação: $script:LogFile" DarkGray
+Stop-Log
 
 if (-not $NoLaunch) {
     Step 'Iniciando o escritório…'

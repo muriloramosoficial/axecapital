@@ -23,6 +23,27 @@ function Npm { & $script:CmdExe '/d' '/c' 'npm' @args }
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+# ── log + pausa: se algo quebrar, a janela NÃO fecha antes de você ler ───
+$logDir = Join-Path $root 'data\logs'
+try { New-Item -ItemType Directory -Force -Path $logDir | Out-Null } catch { }
+$script:LogFile = Join-Path $logDir ('start-{0}.log' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+try { Start-Transcript -Path $script:LogFile -Force | Out-Null; $script:Logging = $true } catch { $script:Logging = $false }
+function Stop-Log { if ($script:Logging) { try { Stop-Transcript | Out-Null } catch { } ; $script:Logging = $false } }
+function Hold($msg) {
+    if ($env:AXE_NOPAUSE -eq '1') { return }
+    if ($msg) { Write-Host "`n  ✕ $msg" -ForegroundColor Red }
+    Write-Host "  log: $script:LogFile" -ForegroundColor DarkGray
+    try { Read-Host '  Pressione ENTER para fechar esta janela' | Out-Null } catch { Start-Sleep -Seconds 60 }
+}
+trap {
+    Write-Host "`n  ✕ erro: $($_.Exception.Message)" -ForegroundColor Red
+    $pos = $_.InvocationInfo.PositionMessage
+    if ($pos) { Write-Host "$pos" -ForegroundColor DarkGray }
+    Stop-Log
+    Hold
+    exit 1
+}
+
 function Have($cmd) { return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
 function Listening($p) {
     try { return [bool](Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue) }
@@ -30,7 +51,13 @@ function Listening($p) {
 }
 
 Write-Host "`n  AXE CAPITAL — autonomous forex desk" -ForegroundColor Cyan
-Write-Host "  root: $root`n" -ForegroundColor DarkGray
+Write-Host "  root: $root" -ForegroundColor DarkGray
+if (-not (Have 'node')) {
+    Stop-Log
+    Hold 'Node.js não encontrado no PATH. Feche e reabra o terminal ou rode o instalador de novo.'
+    exit 1
+}
+Write-Host "  node: $(node -v)   log: $script:LogFile`n" -ForegroundColor DarkGray
 
 # ── ponte MetaTrader 5 (usa a conta JÁ logada no terminal) ───────────────
 if (-not $NoBridge) {
@@ -59,13 +86,22 @@ if ($Dev) {
     Write-Host "  ▸ modo desenvolvimento (vite + tsx watch)" -ForegroundColor Cyan
     if (-not $NoBrowser) { Start-Process 'http://localhost:5173' }
     Npm run dev
+    Stop-Log
+    Hold
     return
 }
 
 if (-not (Test-Path (Join-Path $root 'backend\dist\server.js'))) {
     Write-Host "  ▸ build ausente, compilando…" -ForegroundColor Cyan
     Npm run build --prefix backend  --loglevel=error
+    if ($LASTEXITCODE -ne 0) { Stop-Log; Hold "falha ao compilar o backend (código $LASTEXITCODE)"; exit 1 }
     Npm run build --prefix frontend --loglevel=error
+    if ($LASTEXITCODE -ne 0) { Stop-Log; Hold "falha ao compilar a interface (código $LASTEXITCODE)"; exit 1 }
+}
+if (-not (Test-Path (Join-Path $root 'backend\dist\server.js'))) {
+    Stop-Log
+    Hold "não encontrei backend\dist\server.js — rode o instalador de novo (Axe Capital - Atualizar.bat)"
+    exit 1
 }
 
 if (-not $NoBrowser) {
@@ -81,3 +117,6 @@ if (-not $NoBrowser) {
 
 Write-Host "  ▸ engine em http://localhost:$Port   (Ctrl+C encerra)`n" -ForegroundColor Cyan
 node (Join-Path $root 'backend\dist\server.js')
+$code = $LASTEXITCODE
+Stop-Log
+if ($code -ne 0) { Hold "o engine encerrou com erro (código $code)" } else { Hold }
