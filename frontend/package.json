@@ -32,5 +32,9 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "oxlint": true
   }
 }

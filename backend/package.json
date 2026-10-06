@@ -26,5 +26,8 @@
     "typescript": "^7.0.2"
   },
   "type": "module",
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "esbuild": true
+  }
 }

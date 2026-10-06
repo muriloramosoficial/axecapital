@@ -19,7 +19,14 @@ try { Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAc
 $script:CmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
 if (-not (Test-Path $script:CmdExe)) { $script:CmdExe = 'cmd.exe' }
 # npm via cmd.exe: evita o bloqueio de npm.ps1 em máquinas com ExecutionPolicy restrita
-function Npm { & $script:CmdExe '/d' '/c' 'npm' @args }
+# npm 12 derruba o install quando herda npm_config_allow_scripts do ambiente
+function Clear-NpmEnv {
+    foreach ($e in Get-ChildItem Env: ) {
+        if ($e.Name -like 'npm_config_allow*') { Remove-Item -Path ('Env:' + $e.Name) -ErrorAction SilentlyContinue }
+    }
+}
+Clear-NpmEnv
+function Npm { Clear-NpmEnv; & $script:CmdExe '/d' '/c' 'npm' @args }
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 

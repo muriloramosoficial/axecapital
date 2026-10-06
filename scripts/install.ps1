@@ -74,14 +74,42 @@ trap {
 $script:CmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
 if (-not (Test-Path $script:CmdExe)) { $script:CmdExe = 'cmd.exe' }
 
+# npm 12 (Node 26) rejeita qualquer política de allow-scripts que chegue pelo
+# AMBIENTE (npm_config_allow_scripts), mesmo que ela tenha vindo do .npmrc do
+# usuário — é o bug npm/cli#9783/#9968, que derruba o install com EALLOWSCRIPTS.
+# Então limpamos essas variáveis antes de qualquer chamada de npm.
+function Clear-NpmEnv {
+    foreach ($e in Get-ChildItem Env: ) {
+        if ($e.Name -like 'npm_config_allow*') {
+            Remove-Item -Path ('Env:' + $e.Name) -ErrorAction SilentlyContinue
+        }
+    }
+}
+Clear-NpmEnv
+
 # npm SEMPRE através do cmd.exe → usa npm.cmd e nunca npm.ps1.
 # Funções sem bloco param() para que tokens como --prefix caiam todos em $args.
 function Npm {
+    Clear-NpmEnv
     & $script:CmdExe '/d' '/c' 'npm' @args
     if ($LASTEXITCODE -ne 0) { Fail "falha ao executar: npm $($args -join ' ')  (código $LASTEXITCODE)" }
 }
 function NpmOut {
+    Clear-NpmEnv
     return (& $script:CmdExe '/d' '/c' 'npm' @args 2>$null | Select-Object -First 1)
+}
+# install tolerante: se o npm 12 bloquear scripts de pós-instalação, repete sem eles
+function NpmInstall($prefix) {
+    Clear-NpmEnv
+    & $script:CmdExe '/d' '/c' 'npm' 'install' '--prefix' $prefix '--no-audit' '--no-fund' '--loglevel=error'
+    if ($LASTEXITCODE -eq 0) { return }
+    Warn "npm install falhou em $prefix (código $LASTEXITCODE) — tentando de novo sem os scripts de pós-instalação…"
+    Clear-NpmEnv
+    & $script:CmdExe '/d' '/c' 'npm' 'install' '--prefix' $prefix '--no-audit' '--no-fund' '--loglevel=error' '--ignore-scripts'
+    if ($LASTEXITCODE -ne 0) {
+        Fail "não consegui instalar as dependências de $prefix (código $LASTEXITCODE).`n     Veja o log do npm em %LOCALAPPDATA%\npm-cache\_logs e me mande as últimas linhas."
+    }
+    Ok "dependências de $prefix instaladas (sem scripts de pós-instalação)"
 }
 function Have-Npm {
     if (NpmOut '-v') { return $true }
@@ -233,8 +261,8 @@ $needBuild        = $Force -or $codeChanged -or -not (Test-Path 'backend\dist\se
 
 if ($needBackendDeps -or $needFrontendDeps) {
     Step 'Instalando dependências'
-    if ($needBackendDeps)  { Npm install --prefix backend  --no-audit --no-fund --loglevel=error }
-    if ($needFrontendDeps) { Npm install --prefix frontend --no-audit --no-fund --loglevel=error }
+    if ($needBackendDeps)  { NpmInstall 'backend' }
+    if ($needFrontendDeps) { NpmInstall 'frontend' }
     Ok 'pacotes npm em dia'
 } else {
     Ok 'dependências já instaladas'
