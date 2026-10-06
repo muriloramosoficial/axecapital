@@ -20,6 +20,7 @@ import { ai } from '../ai/provider.js';
 import { atr, MomentumBreakoutStrategy, macroScore, quantScore, technicalScore } from './strategy-engine.js';
 import { evaluateRisk } from './risk-engine.js';
 import { actualFor, buildCalendar, makeBreakingNews } from './news-engine.js';
+import { loadState, saveState } from '../core/persistence.js';
 
 const TICK_MS = 200;
 
@@ -72,7 +73,7 @@ export class SimulationEngine {
 
   start() {
     this.news = buildCalendar(this.simNow);
-    this.seedDesk();
+    this.restore();
     this.timer = setInterval(() => this.tick(), TICK_MS);
     this.pollMT5();
     setInterval(() => this.pollMT5(), 10_000);
@@ -85,6 +86,73 @@ export class SimulationEngine {
     } catch {
       this.mt5Connected = false;
     }
+  }
+
+  /** Re-apply whatever the user configured on this machine, or staff a default floor. */
+  private restore() {
+    const saved = loadState();
+    if (!saved) {
+      this.seedDesk();
+      this.persist();
+      return;
+    }
+    try {
+      if (saved.bridgeUrl) this.mt5Broker.bridge.baseUrl = saved.bridgeUrl;
+      if (saved.ai) ai.update(saved.ai as any);
+      if (saved.sim) {
+        this.config = { ...this.config, ...(saved.sim as any) };
+        this.market.setRegime(this.config.regime);
+      }
+      if (saved.watchlist?.length) this.watchlist = saved.watchlist;
+      if (saved.agents?.length) {
+        agents.clear();
+        for (const a of saved.agents) {
+          try {
+            agents.hire({
+              role: a.role as AgentRole,
+              name: a.name,
+              symbol: a.symbol,
+              deskId: a.deskId,
+              aggressiveness: a.config?.aggressiveness,
+              maxRiskPct: a.config?.maxRiskPct,
+              useAI: a.config?.useAI,
+            });
+          } catch {
+            /* desk no longer exists — skip */
+          }
+        }
+      }
+      this.watchlist.forEach((sym) => void this.ensureSymbol(sym));
+      if (!agents.list().length) this.seedDesk();
+      console.log(`[axe-capital] restored local setup (${agents.list().length} agents, saved ${saved.savedAt})`);
+    } catch (err) {
+      console.warn('[axe-capital] could not restore saved setup:', (err as Error).message);
+      if (!agents.list().length) this.seedDesk();
+    }
+  }
+
+  /** Persist only what the USER chose — never simulated P&L. */
+  persist() {
+    saveState({
+      ai: { ...ai.config },
+      bridgeUrl: this.mt5Broker.bridge.baseUrl,
+      sim: {
+        speed: this.config.speed,
+        running: this.config.running,
+        regime: this.config.regime,
+        autoRegime: this.config.autoRegime,
+        maxExposurePct: this.config.maxExposurePct,
+        executionMode: this.config.executionMode,
+      },
+      watchlist: this.watchlist,
+      agents: agents.list().map((a) => ({
+        role: a.role,
+        name: a.name,
+        symbol: a.symbol,
+        deskId: a.deskId,
+        config: a.config,
+      })),
+    });
   }
 
   /** Default staffing so the floor is alive on first load. */
@@ -148,7 +216,9 @@ export class SimulationEngine {
     for (const scout of scouts) {
       if (scout.busyUntil > Date.now()) continue;
       if ((this.cooldown.get(scout.symbol!) ?? 0) > this.simNow) continue;
-      // ── ONE ENTRY AT A TIME: this agent is already managing a live position ──
+      // ── ONE *SIMULTANEOUS* ENTRY PER AGENT ──────────────────────────────
+      // the agent may trade as many times as he wants during the day, but only
+      // one live position at a time; as soon as it closes he can look again.
       if (this.positions.some((p) => p.agentId === scout.id || p.symbol === scout.symbol)) continue;
       if (Math.random() > 0.22) continue;
       agents.setState(scout.id, 'SCANNING', `Scanning ${scout.symbol}`);
@@ -157,7 +227,7 @@ export class SimulationEngine {
       const signal = strat.analyze({ symbol: scout.symbol!, candles, regime: this.config.regime });
       if (!signal) continue;
       if (this.activeForSymbol(scout.symbol!)) continue;
-      this.cooldown.set(scout.symbol!, this.simNow + (3 + Math.random() * 6) * 60_000);
+      this.cooldown.set(scout.symbol!, this.simNow + (1.5 + Math.random() * 3) * 60_000);
       this.openOpportunity(scout, signal.side, signal.strength, signal.reason);
     }
   }
@@ -482,6 +552,8 @@ export class SimulationEngine {
       const owner = ownerId ? agents.get(ownerId) : undefined;
       if (owner) {
         agents.settle(owner.id, trade.pnl);
+        // the slot is free again — short breather, then he can take a new entry
+        this.cooldown.set(trade.symbol, this.simNow + (0.5 + Math.random() * 1.5) * 60_000);
         agents.setState(
           owner.id,
           trade.pnl >= 0 ? 'SUCCESS' : 'REJECTED',
@@ -715,21 +787,25 @@ export class SimulationEngine {
     this.config.regime = regime;
     this.market.setRegime(regime);
     bus.emit('REGIME_CHANGED', { regime });
+    this.persist();
     this.systemSay(`Market regime switched to ${regime.replace('_', ' ')}.`, regime === 'NEWS_SHOCK' ? 'warn' : 'info');
   }
 
   setSpeed(speed: number) {
     this.config.speed = Math.max(0.25, Math.min(100, speed));
     bus.emit('SIM_CONTROL', { ...this.config });
+    this.persist();
   }
 
   setRunning(running: boolean) {
     this.config.running = running;
     bus.emit('SIM_CONTROL', { ...this.config });
+    this.persist();
   }
 
   setExecutionMode(mode: 'SIMULATION' | 'MT5_LIVE') {
     this.config.executionMode = mode;
+    this.persist();
     bus.emit('SIM_CONTROL', { ...this.config });
     this.systemSay(
       mode === 'MT5_LIVE'
@@ -771,6 +847,7 @@ export class SimulationEngine {
   setWatchlist(symbols: string[]) {
     this.watchlist = symbols;
     symbols.forEach((s) => void this.ensureSymbol(s));
+    this.persist();
     bus.emit('SIM_CONTROL', { ...this.config, watchlist: symbols });
   }
 

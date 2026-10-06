@@ -75,13 +75,13 @@ export function AgentInspector({ onOpenChart }: { onOpenChart: (symbol: string) 
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="rounded border border-white/8 bg-black/30 px-2 py-1.5">
-          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-500">Open entry</div>
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-500">Open entry (max 1)</div>
           {agent.openSymbol ? (
             <div className="mono text-[13px]" style={{ color: agent.openPnl >= 0 ? '#4ade80' : '#f05252' }}>
               {agent.openSymbol} {agent.openPnl >= 0 ? '+' : '-'}${Math.abs(agent.openPnl).toFixed(2)}
             </div>
           ) : (
-            <div className="mono text-[13px] text-slate-500">flat</div>
+            <div className="mono text-[13px] text-slate-500">free slot</div>
           )}
         </div>
         <div className="rounded border border-white/8 bg-black/30 px-2 py-1.5">

@@ -28,11 +28,26 @@ irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/a
 O instalador puxa **somente a branch `arena/8d46e70a-axecapital`** (nada de merge na `main`) e:
 
 1. instala Git, Node.js LTS e Python via `winget` se faltarem;
-2. clona a branch em `%USERPROFILE%\AxeCapital` (ou atualiza se já existir);
+2. clona a branch em `%USERPROFILE%\AxeCapital`;
 3. instala as dependências do engine e da interface e compila tudo;
 4. instala os requisitos da ponte MetaTrader 5;
-5. cria o atalho **“Axe Capital”** na área de trabalho + `Start-AxeCapital.cmd`;
+5. cria os atalhos **“Axe Capital”** (área de trabalho), `Start-AxeCapital.cmd` e `Update-AxeCapital.cmd`;
 6. sobe a ponte MT5 (se houver Python), o engine em `http://localhost:8787` e abre o navegador.
+
+### O mesmo comando também ATUALIZA
+
+Rode o comando de novo (ou o `Update-AxeCapital.cmd`) e ele:
+
+* consulta a branch e compara com o que está instalado — se não houver novidade, avisa
+  `já está na última versão` e não refaz nada;
+* se houver, mostra `abc1234 → def5678`, baixa só o delta (`git reset --hard FETCH_HEAD`)
+  e **reinstala/recompila apenas o que mudou** (deps só se o `package-lock` mudou);
+* **mantém todas as suas configurações**: `data\config.json` (provider de IA, URL da ponte,
+  roteamento de execução, watchlist e os agentes contratados) e `.env` são ignorados pelo git,
+  nunca são sobrescritos — e ainda ganham uma cópia carimbada em `data\backups\` antes do update.
+
+Flags úteis: `-CheckOnly` (só verifica se há atualização), `-Force` (recompila tudo),
+`-SkipBridge`, `-NoLaunch`.
 
 Parâmetros opcionais (ex.: outra pasta, sem abrir no fim):
 
@@ -202,16 +217,24 @@ Regimes de mercado: `TRENDING · RANGING · HIGH_VOLATILITY · LOW_VOLATILITY ·
 
 ---
 
-## 7. Regra de uma entrada por agente
+## 7. Regra de uma entrada **simultânea** por agente
 
 * Cada **Market Scout** é dono do seu instrumento. Ao detectar um setup, ele leva a ideia pelo pipeline e, se aprovada, **a posição fica no nome dele** (`position.agentId`).
-* Enquanto essa posição estiver aberta, aquele agente **não gera nenhuma nova entrada** — nem no mesmo ativo por outro agente (`maybeScan` bloqueia por `agentId` e por `symbol`).
+* **Máximo de 1 posição aberta por vez, por agente.** Enquanto ela estiver viva ele não abre outra (`maybeScan` bloqueia por `agentId` e por `symbol`); assim que ela fecha, o slot é liberado e, depois de um respiro curto (~30–120s de tempo simulado), ele volta a caçar e pode operar quantas vezes quiser no dia.
 * Durante a operação ele entra em estado `WAITING` e a mesa mostra, atualizando a cada ~1,2s:
   `● LIVE EURUSD +$42.80` (marcação a mercado do que ele está gerindo).
 * Quando o SL/TP dispara, o engine credita o resultado no agente (`AgentRegistry.settle`) e a plaquinha da mesa passa a mostrar o **resultado total do dia**:
   `DAY +$1,379.40 · 3t`, em verde se positivo e vermelho se negativo — com `W/L` detalhado no *Agent inspector*.
 * A câmera vai até a mesa dele no momento do fechamento e ele comenta o resultado no chat da mesa.
 * **Reset day** zera os resultados diários de todos os agentes.
+
+### Persistência local das suas configurações
+
+Tudo que **você** configura é gravado em `data/config.json` (fora do git):
+provider de IA (URL, modelo, chave, temperatura), URL da ponte MT5, roteamento de execução,
+regime/velocidade, watchlist e **a equipe contratada** (função, ativo, mesa, agressividade,
+risco máximo, uso de IA). Ao reabrir o app — ou depois de uma atualização — a mesa volta
+exatamente como você deixou. Resultados simulados de P&L nunca são persistidos.
 
 ---
 

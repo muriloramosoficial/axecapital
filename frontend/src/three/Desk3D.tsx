@@ -236,7 +236,7 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
                   ● LIVE {agent.openSymbol} {money(agent.openPnl)}
                 </span>
               ) : (
-                <span className="text-slate-500">no open entry</span>
+                <span className="text-slate-500">slot free · ready</span>
               )}
               <span
                 className="rounded px-1"

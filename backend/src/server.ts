@@ -51,7 +51,10 @@ api.get('/mt5/status', async (_req, res) => {
 
 api.post('/mt5/bridge-url', (req, res) => {
   const { url } = req.body ?? {};
-  if (typeof url === 'string' && url.startsWith('http')) sim.mt5Broker.bridge.baseUrl = url.replace(/\/$/, '');
+  if (typeof url === 'string' && url.startsWith('http')) {
+    sim.mt5Broker.bridge.baseUrl = url.replace(/\/$/, '');
+    sim.persist();
+  }
   res.json({ bridgeUrl: sim.mt5Broker.bridge.baseUrl });
 });
 
@@ -66,6 +69,7 @@ api.post('/agents', async (req, res) => {
     if (!role || !(role in ROLE_META)) return res.status(400).json({ error: 'invalid role' });
     if (symbol) await sim.ensureSymbol(symbol);
     const agent = agents.hire({ role: role as AgentRole, name, symbol, deskId, aggressiveness, maxRiskPct, useAI });
+    sim.persist();
     if (agent.symbol && !sim.watchlist.includes(agent.symbol)) sim.setWatchlist([...sim.watchlist, agent.symbol]);
     sim.systemSay(`${agent.name} joined the floor as ${ROLE_META[agent.role].label}${agent.symbol ? ` on ${agent.symbol}` : ''}.`, 'good');
     res.json(agent);
@@ -78,6 +82,7 @@ api.patch('/agents/:id', (req, res) => {
   const a = agents.update(req.params.id, req.body ?? {});
   if (!a) return res.status(404).json({ error: 'not found' });
   if (a.symbol && !sim.watchlist.includes(a.symbol)) sim.setWatchlist([...sim.watchlist, a.symbol]);
+  sim.persist();
   res.json(a);
 });
 
@@ -85,6 +90,7 @@ api.delete('/agents/:id', (req, res) => {
   const a = agents.get(req.params.id);
   const ok = agents.fire(req.params.id);
   if (ok && a) sim.systemSay(`${a.name} left the ${ROLE_META[a.role].label} desk.`, 'warn');
+  sim.persist();
   res.json({ ok });
 });
 
@@ -96,6 +102,7 @@ api.post('/sim/control', (req, res) => {
   if (regime) sim.setRegime(regime as MarketRegime);
   if (typeof autoRegime === 'boolean') sim.config.autoRegime = autoRegime;
   if (typeof maxExposurePct === 'number') sim.config.maxExposurePct = maxExposurePct;
+  if (typeof autoRegime === 'boolean' || typeof maxExposurePct === 'number') sim.persist();
   if (executionMode) sim.setExecutionMode(executionMode);
   if (Array.isArray(watchlist)) sim.setWatchlist(watchlist);
   res.json(sim.config);
@@ -120,6 +127,7 @@ api.post('/ai/config', (req, res) => {
   const patch = { ...req.body };
   if (patch.apiKey === '***') delete patch.apiKey;
   const cfg = ai.update(patch);
+  sim.persist();
   sim.systemSay(
     cfg.enabled ? `AI layer enabled — ${cfg.provider} @ ${cfg.baseUrl} (${cfg.model}).` : 'AI layer disabled, running on heuristics.',
   );
