@@ -635,6 +635,22 @@ Além disso o engine ficou falante: ele loga `enviando BUY 0.1 EURUSD via MetaTr
 (local terminal)` a cada execução, avisa no feed quando a ponte cai (as ordens voltam
 para a mesa simulada) e mostra o motivo exato da recusa em vez de um `HTTP 409` seco.
 
+## 9.16 HUD enxuta: fim dos cards sobrepostos
+
+Os cards da faixa de transmissão (legendas, card de resultado, spotlight, aviso de modo)
+eram posicionados com `bottom-[86px]`, `bottom-[104px]`, `bottom-[112px]`,
+`bottom-[150px]` — valores fixos. Bastava dois aparecerem juntos, ou o texto crescer, e
+eles montavam uns nos outros.
+
+* agora todos vivem numa **coluna flex** acima da faixa de preços e da barra de
+  controles: aparecem empilhados, com espaçamento, e somem sem deixar buraco;
+* o **padrão de HUD virou enxuto** (conta, pipeline, trade journal, ticker, controles,
+  legendas, card de resultado, spotlight e marca d'água). Quem já usava o padrão antigo
+  é migrado uma vez só (`axe.hud.prefs.v = 2`);
+* em **/admin#hud** há o preset **✦ Enxuto (recomendado)** ao lado de *Operação completa*
+  (os 17 painéis), *Transmissão* e *Só o escritório* — e os checkboxes painel a painel
+  continuam lá para montar o seu.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

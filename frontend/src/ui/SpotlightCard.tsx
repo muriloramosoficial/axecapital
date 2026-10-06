@@ -17,7 +17,7 @@ export function SpotlightCard() {
   const price = agent.symbol ? prices[agent.symbol] : undefined;
 
   return (
-    <div className="pointer-events-none absolute bottom-[104px] left-4 z-30 max-w-[min(92vw,460px)]">
+    <div className="pointer-events-none w-full max-w-[min(92vw,460px)]">
       <div
         key={agent.id}
         className="slide-in overflow-hidden rounded-lg border border-white/10 bg-[#0b1119]/[0.92] shadow-panel backdrop-blur-xl"

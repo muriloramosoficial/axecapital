@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { connect, useStore, HUD_CATALOG, type HudKey, type Quality, type RestMode } from '../state/store';
+import { connect, useStore, HUD_CATALOG, LEAN_HUD_KEYS, type HudKey, type Quality, type RestMode } from '../state/store';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
 import { AdminGate } from './AdminLogin';
@@ -246,7 +246,19 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
             <Card title="Presets rápidos" hint="Combinações prontas para gravar, transmitir ou operar.">
               <div className="flex flex-wrap gap-2">
                 <button
+                  className="btn btn-accent"
+                  title="Só o essencial: conta, pipeline, journal, ticker, controles e legendas"
+                  onClick={() => {
+                    setAllHudPrefs(false);
+                    LEAN_HUD_KEYS.forEach((k) => setHudPref(k, true));
+                    setHudOn(true);
+                  }}
+                >
+                  ✦ Enxuto (recomendado)
+                </button>
+                <button
                   className="btn"
+                  title="Liga os 17 painéis — a tela fica cheia"
                   onClick={() => {
                     setAllHudPrefs(true);
                     setHudOn(true);

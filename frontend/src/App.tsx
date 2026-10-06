@@ -122,6 +122,19 @@ export default function App() {
             )}
           </div>
 
+          {/* Faixa de transmissão: tudo empilhado em coluna, nada mais com
+              "bottom-[Xpx]" fixo — era isso que fazia os cards se sobreporem. */}
+          <div className="pointer-events-none flex w-full flex-col items-center gap-1.5">
+            {on('spotlight') && (
+              <div className="flex w-full justify-start">
+                <SpotlightCard />
+              </div>
+            )}
+            {on('resultCard') && <ResultCard />}
+            {on('modeNotice') && <ModeNotice onOpenSettings={() => window.open('/admin', '_blank')} />}
+            {on('captions') && <Captions />}
+          </div>
+
           {on('marketRail') && (
             <div className="pointer-events-auto">
               <MarketRail />
@@ -154,12 +167,8 @@ export default function App() {
         </div>
       )}
 
-      {/* camada de transmissão */}
+      {/* marca d'água fica fora da coluna: ela é ancorada no canto da tela */}
       {prefs.watermark && <Watermark />}
-      {on('captions') && <Captions />}
-      {on('resultCard') && <ResultCard />}
-      {on('spotlight') && <SpotlightCard />}
-      {on('modeNotice') && <ModeNotice onOpenSettings={() => window.open('/admin', '_blank')} />}
 
       {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}
     </div>

@@ -65,10 +65,37 @@ export const HUD_CATALOG: { key: HudKey; label: string; hint: string; group: str
   { key: 'watermark', label: "Marca d'água", hint: 'Logo Axe Capital no canto (some com a HUD desligada? não)', group: 'Transmissão' },
 ];
 
-const DEFAULT_HUD_PREFS = Object.fromEntries(HUD_CATALOG.map((h) => [h.key, true])) as Record<HudKey, boolean>;
+/**
+ * Padrão ENXUTO: ligar tudo de uma vez enchia a tela e os cards brigavam por
+ * espaço. O escritório é o protagonista; o resto liga no backoffice.
+ */
+const LEAN_HUD: HudKey[] = [
+  'topHud',
+  'pipeline',
+  'journal',
+  'marketRail',
+  'controlBar',
+  'captions',
+  'resultCard',
+  'spotlight',
+  'watermark',
+];
+
+const DEFAULT_HUD_PREFS = Object.fromEntries(
+  HUD_CATALOG.map((h) => [h.key, LEAN_HUD.includes(h.key)]),
+) as Record<HudKey, boolean>;
+
+/** versão do esquema de preferências — subir força uma migração dos padrões */
+const HUD_PREFS_VERSION = '2';
 
 function readHudPrefs(): Record<HudKey, boolean> {
   try {
+    // quem já tinha tudo ligado (v1) volta uma única vez para o padrão enxuto
+    if (localStorage.getItem('axe.hud.prefs.v') !== HUD_PREFS_VERSION) {
+      localStorage.setItem('axe.hud.prefs.v', HUD_PREFS_VERSION);
+      localStorage.setItem('axe.hud.prefs', JSON.stringify(DEFAULT_HUD_PREFS));
+      return { ...DEFAULT_HUD_PREFS };
+    }
     const raw = localStorage.getItem('axe.hud.prefs');
     if (!raw) return { ...DEFAULT_HUD_PREFS };
     const parsed = JSON.parse(raw);
@@ -77,6 +104,8 @@ function readHudPrefs(): Record<HudKey, boolean> {
     return { ...DEFAULT_HUD_PREFS };
   }
 }
+
+export const LEAN_HUD_KEYS = LEAN_HUD;
 
 function readLS<T>(key: string, fallback: T, parse: (raw: string) => T | null): T {
   try {

@@ -21,7 +21,7 @@ export function ModeNotice({ onOpenSettings }: { onOpenSettings: () => void }) {
   if (hidden || mt5Connected) return null;
 
   return (
-    <div className="glass slide-in pointer-events-auto absolute bottom-[112px] left-1/2 z-30 w-[min(92vw,520px)] -translate-x-1/2 rounded-lg border-sky-400/20 p-3">
+    <div className="glass slide-in pointer-events-auto w-[min(92vw,520px)] rounded-lg border-sky-400/20 p-3">
       <div className="flex items-start gap-3">
         <span className="text-[18px]">🧪</span>
         <div className="flex-1">

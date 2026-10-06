@@ -36,7 +36,7 @@ export function ResultCard() {
   const mins = Math.max(1, Math.round(card.durationMs / 60000));
 
   return (
-    <div className="pointer-events-none absolute bottom-[150px] left-1/2 z-30 -translate-x-1/2 px-4">
+    <div className="pointer-events-none flex w-full justify-center px-2">
       <div
         className="pointer-events-auto flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-panel backdrop-blur-md"
         style={{ borderColor: `${accent}55`, background: 'rgba(7,12,19,0.9)' }}

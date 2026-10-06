@@ -112,7 +112,7 @@ export function Captions() {
   const pending = queue.current.length;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[86px] z-30 flex justify-center px-4">
+    <div className="pointer-events-none flex w-full justify-center px-2">
       <div
         className={`pointer-events-auto max-w-[min(70vw,780px)] cursor-pointer rounded-lg border bg-[#070c13]/[0.86] px-4 py-2.5 shadow-panel backdrop-blur-md ${
           TONE_RING[shown.tone] ?? 'border-white/10'
