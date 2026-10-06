@@ -12,6 +12,7 @@ import { DESKS, ROLE_META } from './agents/office-layout.js';
 import { ai } from './ai/provider.js';
 import { lab } from './engines/research-lab.js';
 import { wire } from './engines/news-crawler.js';
+import { briefing } from './engines/briefing.js';
 import { brains } from './agents/learning.js';
 import type { AgentRole, MarketRegime } from './core/types.js';
 
@@ -25,6 +26,12 @@ const api = express.Router();
 api.get('/health', (_req, res) => res.json({ ok: true, mode: sim.config.executionMode, mt5: sim.mt5Connected }));
 api.get('/snapshot', (_req, res) => res.json(sim.snapshot()));
 api.get('/layout', (_req, res) => res.json({ desks: DESKS, roleMeta: ROLE_META }));
+api.get('/briefing', (_req, res) => res.json(briefing.summary()));
+api.post('/briefing/refresh', async (_req, res) => {
+  const b = await briefing.refresh();
+  bus.emit('BRIEFING_READY', b);
+  res.json(b);
+});
 api.get('/wire', (_req, res) => res.json(wire.summary(40)));
 api.post('/wire/refresh', async (_req, res) => {
   await wire.refresh();
@@ -308,6 +315,8 @@ wss.on('connection', (ws) => {
 // market frames at ~8 Hz for every client
 let wireVersion = -1;
 wire.start();
+briefing.start();
+let briefingVersion = -1;
 
 setInterval(() => {
   const frame = {
@@ -322,6 +331,7 @@ setInterval(() => {
     config: sim.config,
     ai: { enabled: ai.config.enabled, provider: ai.config.provider, model: ai.config.model },
     lab: lab.summary(),
+    briefing: briefingVersion !== (briefing.current?.version ?? -1) ? ((briefingVersion = briefing.current?.version ?? -1), briefing.current) : undefined,
     wire: wireVersion !== wire.version ? ((wireVersion = wire.version), wire.summary()) : undefined,
     agents: agents.list().map((a) => ({
       id: a.id,

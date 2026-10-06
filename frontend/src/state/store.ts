@@ -56,6 +56,16 @@ export interface WireSummary {
   headlines: Headline[];
   version: number;
 }
+export interface Briefing {
+  at: number;
+  source: 'AI' | 'RULES';
+  model?: string;
+  headline: string;
+  text: string;
+  bias: { currency: string; stance: 'BULLISH' | 'BEARISH' | 'NEUTRAL'; why: string }[];
+  watch: string[];
+  version: number;
+}
 export interface LabChampion {
   symbol: string;
   name: string;
@@ -126,6 +136,7 @@ interface State {
   ai: AIConfig | null;
   lab: LabSummary | null;
   wire: WireSummary | null;
+  briefing: Briefing | null;
   watchlist: string[];
   focus: FocusTarget | null;
   autoCamera: boolean;
@@ -183,6 +194,7 @@ export const useStore = create<State>((set, get) => ({
   ai: null,
   lab: null,
   wire: null,
+  briefing: null,
   watchlist: [],
   focus: null,
   autoCamera: true,
@@ -244,6 +256,7 @@ export const useStore = create<State>((set, get) => ({
       ai: s.ai,
       lab: s.lab ?? null,
       wire: s.wire ?? null,
+      briefing: s.briefing ?? null,
       watchlist: s.watchlist,
     }),
 
@@ -283,6 +296,7 @@ export const useStore = create<State>((set, get) => ({
       ai: f.ai ? ({ ...(get().ai ?? {}), ...f.ai } as any) : get().ai,
       lab: f.lab ?? get().lab,
       wire: f.wire ?? get().wire,
+      briefing: f.briefing ?? get().briefing,
       agents: dirty ? patched : prev,
     });
   },

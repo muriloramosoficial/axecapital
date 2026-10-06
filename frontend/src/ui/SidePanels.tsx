@@ -2,6 +2,35 @@ import { useStore } from '../state/store';
 import { api } from '../lib/api';
 import { countdown, STATE_COLOR } from '../lib/format';
 
+/** Briefing macro resumido pela IA (ou pelas regras da mesa). */
+export function BriefingPanel() {
+  const b = useStore((s) => s.briefing);
+  if (!b) return null;
+  const col = (st: string) => (st === 'BULLISH' ? 'text-emerald-300' : st === 'BEARISH' ? 'text-rose-300' : 'text-slate-400');
+  return (
+    <div className="glass max-h-[26vh] shrink-0 overflow-y-auto rounded-lg p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="panel-title">Market briefing</span>
+        <span className={`chip ${b.source === 'AI' ? 'border-violet-400/30 text-violet-300' : 'border-white/10 text-slate-400'}`}>
+          {b.source === 'AI' ? `IA · ${b.model ?? 'local'}` : 'regras'}
+        </span>
+      </div>
+      <div className="text-[12px] font-semibold leading-snug text-slate-100">{b.headline}</div>
+      <div className="mt-1 text-[11px] leading-snug text-slate-400">{b.text}</div>
+      {b.bias.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {b.bias.map((x) => (
+            <span key={x.currency} className="chip border-white/10" title={x.why}>
+              <span className="mono mr-1 text-slate-300">{x.currency}</span>
+              <span className={col(x.stance)}>{x.stance === 'BULLISH' ? '▲' : x.stance === 'BEARISH' ? '▼' : '■'}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Manchetes vindas do crawler de notícias (feeds reais quando há internet). */
 export function WirePanel() {
   const wire = useStore((s) => s.wire);

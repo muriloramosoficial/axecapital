@@ -28,7 +28,7 @@ function screenPlan(desk: Desk, agent?: Agent): { kind: ScreenKind; symbol?: str
   } else if (role === 'QUANT_ANALYST' || desk.id === 'research-2') {
     plan.push({ kind: 'QUANT' }, { kind: 'CHART', symbol: sym }, { kind: 'TERMINAL' }, { kind: 'HEATMAP' });
   } else if (role === 'MACRO_ANALYST' || role === 'NEWS_ANALYST' || desk.sector === 'NEWSROOM' || desk.id === 'research-3') {
-    plan.push({ kind: 'NEWSWIRE' }, { kind: 'CHART', symbol: sym }, { kind: 'NEWSPAGE' }, { kind: 'NEWS' });
+    plan.push({ kind: 'NEWSWIRE' }, { kind: 'CHART', symbol: sym }, { kind: 'BRIEFING' }, { kind: 'NEWSPAGE' });
   } else if (role === 'TECHNICAL_ANALYST' || desk.id === 'research-1') {
     plan.push({ kind: 'DOM', symbol: sym }, { kind: 'CHART', symbol: sym }, { kind: 'CHART', symbol: 'GBPUSD' }, { kind: 'TERMINAL' });
   } else {

@@ -423,6 +423,30 @@ API: `GET /api/wire` e `POST /api/wire/refresh`.
   tela, com nome, função, cor do tom e efeito de digitação. Tecla **C** liga/desliga
   (persistido em `axe.captions`).
 
+## 9.5 Briefing da mesa (IA em cima do crawler)
+
+A cada 10 minutos — e sob demanda em `POST /api/briefing/refresh` — o backend
+(`backend/src/engines/briefing.ts`) pega as 12 manchetes mais recentes do wire e pede ao modelo
+de IA configurado um resumo curto em português: manchete, 2–3 frases de leitura de mercado,
+viés por moeda (BULLISH/BEARISH/NEUTRAL) e o que observar nas próximas horas. Se a IA estiver
+desligada ou falhar, um resumo determinístico é montado a partir das próprias manchetes
+(palavras hawkish/dovish ponderadas pelo impacto) — o briefing nunca fica vazio.
+
+Quando sai um briefing novo, o **News/Macro Analyst anuncia o resumo na mesa** (vira fala,
+legenda e foco de câmera), o quadro `MARKET BRIEFING` aparece na parede e nas mesas da redação,
+e o painel *Market briefing* da UI mostra manchete, texto e os chips de viés por moeda.
+API: `GET /api/briefing`.
+
+## 9.6 Lower-third de resultado e fila de legendas
+
+- **Lower-third** (`frontend/src/ui/ResultCard.tsx`) — quando uma posição fecha entra um card
+  central com WIN/LOSS, **R obtido**, par, direção, motivo (take profit / stop loss), preços,
+  duração, setup do lab usado e a assinatura do agente com o acumulado do dia dele. O evento
+  `POSITION_CLOSED` agora carrega `rMultiple`, `agentName`, `role`, `dailyTotal` e `setupName`.
+- **Fila de legendas** — as falas entram numa fila em vez de se atropelarem: cada legenda fica
+  no ar pelo menos 2,6s (até 6,8s conforme o tamanho do texto) e, quando o pregão acelera, as
+  falas de tom `bad`/`good` furam a fila. O contador “+N na fila” aparece no canto da legenda.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

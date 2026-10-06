@@ -20,7 +20,8 @@ export type ScreenKind =
   | 'OPTIMIZER'
   | 'NEWSWIRE'
   | 'NEWSPAGE'
-  | 'HEATMAP';
+  | 'HEATMAP'
+  | 'BRIEFING';
 
 /** espaço lógico de desenho (o canvas é SCALE vezes maior, para nitidez) */
 const W = 512;
@@ -139,6 +140,9 @@ export function updateScreens(now: number) {
         break;
       case 'HEATMAP':
         paintHeatmap(ctx);
+        break;
+      case 'BRIEFING':
+        paintBriefing(ctx);
         break;
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -837,4 +841,54 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): s
   }
   if (line) out.push(line);
   return out;
+}
+
+/** Quadro do briefing macro — o resumo que a IA (ou as regras) montou. */
+function paintBriefing(ctx: CanvasRenderingContext2D) {
+  const b = useStore.getState().briefing;
+  ctx.fillStyle = '#0a1018';
+  ctx.fillRect(8, 8, W - 16, 30);
+  ctx.fillStyle = '#e9f1fb';
+  ctx.font = 'bold 14px Inter, system-ui, sans-serif';
+  ctx.fillText('MARKET BRIEFING', 18, 29);
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillStyle = b?.source === 'AI' ? '#a78bfa' : DIM;
+  ctx.fillText(b ? (b.source === 'AI' ? `IA · ${b.model ?? 'modelo local'}` : 'regras da mesa') : 'aguardando…', 150, 28);
+
+  if (!b) return;
+  ctx.fillStyle = '#eaf2fb';
+  ctx.font = 'bold 15px Inter, system-ui, sans-serif';
+  wrapLines(ctx, b.headline, W - 40)
+    .slice(0, 2)
+    .forEach((l, i) => ctx.fillText(l, 18, 60 + i * 19));
+
+  ctx.font = '12px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#9fb3c8';
+  wrapLines(ctx, b.text, W - 40)
+    .slice(0, 5)
+    .forEach((l, i) => ctx.fillText(l, 18, 108 + i * 16));
+
+  // viés por moeda
+  let x = 18;
+  const y = 206;
+  for (const bias of b.bias.slice(0, 5)) {
+    const col = bias.stance === 'BULLISH' ? GREEN : bias.stance === 'BEARISH' ? RED : DIM;
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(x, y, 92, 42);
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, 3, 42);
+    ctx.fillStyle = '#e4edf7';
+    ctx.font = 'bold 13px Inter, system-ui, sans-serif';
+    ctx.fillText(bias.currency, x + 10, y + 18);
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillStyle = col;
+    ctx.fillText(bias.stance, x + 10, y + 33);
+    x += 96;
+  }
+
+  ctx.fillStyle = DIM;
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillText('NO RADAR', 18, 268);
+  ctx.fillStyle = '#8ca3bb';
+  b.watch.slice(0, 2).forEach((w, i) => ctx.fillText(`• ${wrapLines(ctx, w, W - 60)[0]}`, 18, 284 + i * 14));
 }

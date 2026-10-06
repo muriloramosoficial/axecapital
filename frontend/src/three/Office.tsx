@@ -253,7 +253,7 @@ export function Office() {
     const left = [
       { kind: 'NEWSPAGE' },
       { kind: 'NEWSWIRE' },
-      { kind: 'NEWS' },
+      { kind: 'BRIEFING' },
       { kind: 'CHART', symbol: syms[0] },
     ];
     const right = [

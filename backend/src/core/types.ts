@@ -197,6 +197,11 @@ export interface ClosedTrade {
   result: 'WIN' | 'LOSS' | 'BREAKEVEN';
   reason: 'TAKE_PROFIT' | 'STOP_LOSS' | 'MANUAL' | 'RISK_FLATTEN';
   agentId?: string;
+  agentName?: string;
+  role?: AgentRole;
+  rMultiple?: number;
+  dailyTotal?: number;
+  setupName?: string;
 }
 
 export interface AccountSnapshot {
@@ -262,6 +267,7 @@ export type EventType =
   | 'LESSON_LEARNED'
   | 'LAB_EXPERIMENT'
   | 'SETUP_PROMOTED'
+  | 'BRIEFING_READY'
   | 'NEWS_EVENT'
   | 'NEWS_RELEASED'
   | 'AGENT_STATE'

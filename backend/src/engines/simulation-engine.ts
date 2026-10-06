@@ -19,6 +19,7 @@ import type { TradingBroker } from '../broker/interfaces.js';
 import { ai } from '../ai/provider.js';
 import { atr, MomentumBreakoutStrategy, macroScore, quantScore, technicalScore } from './strategy-engine.js';
 import { lab } from './research-lab.js';
+import { briefing } from './briefing.js';
 import { evaluateRisk } from './risk-engine.js';
 import { actualFor, buildCalendar, makeBreakingNews } from './news-engine.js';
 import { loadMemory, loadState, saveMemory, saveState } from '../core/persistence.js';
@@ -206,6 +207,7 @@ export class SimulationEngine {
     }
     this.runStageQueue();
     if (dt > 0) this.maybeResearch();
+    if (dt > 0) this.maybeBriefing();
     this.maybeAmbient();
   }
 
@@ -734,6 +736,19 @@ export class SimulationEngine {
         else if (trade.pnl < 0) traderAgent.daily.losses++;
       }
       this.positionTrader.delete(p.id);
+      // dados extras para o lower-third de resultado da transmissão
+      {
+        const riskAbs = Math.abs((trade.entry ?? 0) - (trade.stopLoss ?? trade.entry ?? 0)) || 1e-9;
+        const movedAbs = (trade.exit - trade.entry) * (trade.side === 'BUY' ? 1 : -1);
+        trade.rMultiple = Number((movedAbs / riskAbs).toFixed(2));
+        if (owner) {
+          trade.agentName = owner.name;
+          trade.role = owner.role;
+          trade.dailyTotal = Number(owner.daily.realized.toFixed(2));
+        }
+        const champ = lab.summary().champions.find((c) => c.symbol === trade.symbol);
+        if (champ) trade.setupName = champ.name;
+      }
       bus.emit(hitTp ? 'TAKE_PROFIT_TRIGGERED' : 'STOP_LOSS_TRIGGERED', trade);
       bus.emit('POSITION_CLOSED', trade);
       const trader = agents.pick('TRADER', Date.now());
@@ -820,12 +835,28 @@ export class SimulationEngine {
 
   // ──────────────────────────────────────────────────────────── ambience ──
   private lastResearch = 0;
+  private lastBriefingVersion = -1;
 
   /**
    * A sala de pesquisa trabalha em paralelo ao pregão: a cada poucos segundos
    * um agente de backtest/estratégia roda um experimento sobre o histórico de
    * um dos ativos da watchlist e conta o resultado para a mesa.
    */
+  /** Quando sai um briefing novo, o Macro/News Analyst lê o resumo na mesa. */
+  private maybeBriefing() {
+    const b = briefing.current;
+    if (!b || b.version === this.lastBriefingVersion) return;
+    this.lastBriefingVersion = b.version;
+    const crew = [...agents.byRole('NEWS_ANALYST'), ...agents.byRole('MACRO_ANALYST')];
+    const agent = crew[Math.floor(Math.random() * crew.length)];
+    bus.emit('BRIEFING_READY', b);
+    if (!agent) return;
+    agents.setState(agent.id, 'ALERT', 'Briefing da mesa', 3200);
+    agents.setActivity(agent.id, 'TALKING');
+    this.say(agent, `Briefing ${b.source === 'AI' ? 'da IA' : 'da mesa'}: ${b.headline}`, 'info');
+    bus.emit('CAMERA_FOCUS', { deskId: agent.deskId, agentId: agent.id, label: 'Market briefing' });
+  }
+
   private maybeResearch() {
     const now = Date.now();
     if (now - this.lastResearch < 5200) return;

@@ -6,9 +6,10 @@ import { PipelinePanel } from './ui/PipelinePanel';
 import { LabPanel } from './ui/LabPanel';
 import { Scoreboard } from './ui/Scoreboard';
 import { Captions } from './ui/Captions';
+import { ResultCard } from './ui/ResultCard';
 import { CommsFeed } from './ui/CommsFeed';
 import { TradeJournal } from './ui/TradeJournal';
-import { AgentInspector, MarketRail, NewsPanel, WirePanel } from './ui/SidePanels';
+import { AgentInspector, BriefingPanel, MarketRail, NewsPanel, WirePanel } from './ui/SidePanels';
 import { HireAgentModal } from './ui/HireAgentModal';
 import { SettingsModal } from './ui/SettingsModal';
 import { BrainModal } from './ui/BrainModal';
@@ -64,6 +65,7 @@ export default function App() {
               <div className="pointer-events-auto hidden min-h-0 w-[clamp(250px,20vw,340px)] flex-col gap-2 overflow-y-auto pr-0.5 lg:flex">
                 <PipelinePanel />
                 <NewsPanel />
+                <BriefingPanel />
                 <WirePanel />
                 <AgentInspector onOpenChart={setChartSymbol} onOpenBrain={setBrainAgent} />
                 <Scoreboard compact />
@@ -119,6 +121,7 @@ export default function App() {
         </div>
       )}
       {hudMode !== 'clean' && <Captions />}
+      {hudMode !== 'clean' && <ResultCard />}
       {showHud && <SpotlightCard />}
       {showHud && <ModeNotice onOpenSettings={() => setSettings('mt5')} />}
 

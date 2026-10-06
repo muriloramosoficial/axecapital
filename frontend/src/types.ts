@@ -128,6 +128,12 @@ export interface ClosedTrade {
   durationMs: number;
   result: 'WIN' | 'LOSS' | 'BREAKEVEN';
   reason: string;
+  agentId?: string;
+  agentName?: string;
+  role?: AgentRole;
+  rMultiple?: number;
+  dailyTotal?: number;
+  setupName?: string;
 }
 
 export interface NewsEvent {
