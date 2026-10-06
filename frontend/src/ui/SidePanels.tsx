@@ -37,7 +37,7 @@ export function NewsPanel() {
   );
 }
 
-export function AgentInspector({ onOpenChart }: { onOpenChart: (symbol: string) => void }) {
+export function AgentInspector({ onOpenChart, onOpenBrain }: { onOpenChart: (symbol: string) => void; onOpenBrain: (agentId: string) => void }) {
   const id = useStore((s) => s.selectedAgentId);
   const agent = useStore((s) => s.agents.find((a) => a.id === id));
   const roleMeta = useStore((s) => s.roleMeta);
@@ -158,6 +158,9 @@ export function AgentInspector({ onOpenChart }: { onOpenChart: (symbol: string) 
             📈 Chart
           </button>
         )}
+        <button className="btn flex-1" onClick={() => onOpenBrain(agent.id)} title="Memória de aprendizado deste agente">
+          🧠 Brain
+        </button>
         <button className="btn btn-danger" onClick={() => api.fire(agent.id).then(() => select(null))}>
           Dismiss
         </button>

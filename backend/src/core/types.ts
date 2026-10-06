@@ -98,6 +98,8 @@ export interface Opportunity {
   rejectionReason?: string;
   /** scout that owns the idea — only one live entry per owner/symbol */
   ownerAgentId?: string;
+  /** what the owner's learning brain thinks about this setup */
+  brain?: { delta: number; verdict: 'TAKE' | 'NEUTRAL' | 'AVOID'; reason: string; support: number };
   agentTrail: { role: AgentRole; agentId: string; at: number }[];
   aiAssisted?: boolean;
 }
@@ -253,6 +255,7 @@ export type EventType =
   | 'POSITION_CLOSED'
   | 'STOP_LOSS_TRIGGERED'
   | 'TAKE_PROFIT_TRIGGERED'
+  | 'LESSON_LEARNED'
   | 'NEWS_EVENT'
   | 'NEWS_RELEASED'
   | 'AGENT_STATE'

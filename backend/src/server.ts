@@ -10,6 +10,7 @@ import { sim } from './engines/simulation-engine.js';
 import { agents } from './agents/registry.js';
 import { DESKS, ROLE_META } from './agents/office-layout.js';
 import { ai } from './ai/provider.js';
+import { brains } from './agents/learning.js';
 import type { AgentRole, MarketRegime } from './core/types.js';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -93,6 +94,33 @@ api.delete('/agents/:id', (req, res) => {
   sim.persist();
   res.json({ ok });
 });
+
+// ── learning brains ──────────────────────────────────────────────────────
+api.get('/agents/:id/brain', (req, res) => {
+  const a = agents.get(req.params.id);
+  if (!a) return res.status(404).json({ error: 'agent not found' });
+  const brain = brains.for(a.role, a.name, a.symbol);
+  res.json({ agent: { id: a.id, name: a.name, role: a.role, symbol: a.symbol }, brain: brain.summary() });
+});
+
+api.post('/agents/:id/brain/reset', (req, res) => {
+  const a = agents.get(req.params.id);
+  if (!a) return res.status(404).json({ error: 'agent not found' });
+  const brain = brains.for(a.role, a.name, a.symbol);
+  brains.reset(brain.key);
+  sim.persistMemory();
+  sim.systemSay(`${a.name} wiped their trading memory and starts learning from scratch.`, 'warn');
+  res.json({ ok: true });
+});
+
+api.get('/brains', (_req, res) =>
+  res.json({
+    brains: brains
+      .list()
+      .map((b) => ({ key: b.key, name: b.name, role: b.role, symbol: b.symbol, samples: b.samples, winRate: b.winRate, pnl: b.pnl, expectancyR: b.expectancyR, profitFactor: b.profitFactor }))
+      .sort((a, b) => b.pnl - a.pnl),
+  }),
+);
 
 // ── simulation control ───────────────────────────────────────────────────
 api.post('/sim/control', (req, res) => {

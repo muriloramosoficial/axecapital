@@ -12,6 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)); // backend/{src,dist}
 export const ROOT = path.resolve(here, '../../..');
 export const DATA_DIR = process.env.AXE_DATA_DIR || path.join(ROOT, 'data');
 export const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+export const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
 export interface PersistedAgent {
   role: string;
@@ -69,4 +70,35 @@ export function saveState(state: Omit<PersistedState, 'version' | 'savedAt'>) {
       console.warn('[persistence] could not write config.json:', (err as Error).message);
     }
   }, 800);
+}
+
+// ───────────────────────────── agent learning memory (brains) ──────────────
+let memPending: unknown = null;
+let memTimer: NodeJS.Timeout | null = null;
+
+export function loadMemory(): any[] | null {
+  try {
+    if (!fs.existsSync(MEMORY_FILE)) return null;
+    const raw = JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
+    return Array.isArray(raw?.brains) ? raw.brains : null;
+  } catch (err) {
+    console.warn('[persistence] could not read memory.json:', (err as Error).message);
+    return null;
+  }
+}
+
+export function saveMemory(brains: unknown) {
+  memPending = brains;
+  if (memTimer) return;
+  memTimer = setTimeout(() => {
+    memTimer = null;
+    const data = memPending;
+    memPending = null;
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(MEMORY_FILE, JSON.stringify({ version: 1, savedAt: new Date().toISOString(), brains: data }, null, 2));
+    } catch (err) {
+      console.warn('[persistence] could not write memory.json:', (err as Error).message);
+    }
+  }, 1500);
 }

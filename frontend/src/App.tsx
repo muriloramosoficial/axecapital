@@ -8,6 +8,7 @@ import { TradeJournal } from './ui/TradeJournal';
 import { AgentInspector, MarketRail, NewsPanel } from './ui/SidePanels';
 import { HireAgentModal } from './ui/HireAgentModal';
 import { SettingsModal } from './ui/SettingsModal';
+import { BrainModal } from './ui/BrainModal';
 import { TradingViewWidget } from './three/TradingViewScreen';
 import { connect, useStore } from './state/store';
 
@@ -15,6 +16,7 @@ export default function App() {
   const [hire, setHire] = useState(false);
   const [settings, setSettings] = useState(false);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
+  const [brainAgent, setBrainAgent] = useState<string | null>(null);
   const connected = useStore((s) => s.connected);
   const tvEnabled = useStore((s) => s.tvEnabled);
   const setTv = useStore((s) => s.setTv);
@@ -40,7 +42,7 @@ export default function App() {
           <div className="pointer-events-auto flex w-[310px] flex-col gap-2">
             <PipelinePanel />
             <NewsPanel />
-            <AgentInspector onOpenChart={setChartSymbol} />
+            <AgentInspector onOpenChart={setChartSymbol} onOpenBrain={setBrainAgent} />
           </div>
 
           <div className="flex-1" />
@@ -81,6 +83,7 @@ export default function App() {
         </div>
       )}
 
+      {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}
       {hire && <HireAgentModal onClose={() => setHire(false)} />}
       {settings && <SettingsModal onClose={() => setSettings(false)} />}
     </div>

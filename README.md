@@ -19,6 +19,10 @@ Abra o **PowerShell** (ou CMD) e cole:
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1 | iex"
 ```
 
+> Pode rodar **de qualquer pasta** — o script não usa o diretório atual. Ele instala em
+> `%USERPROFILE%\AxeCapital` (ex.: `C:\Users\Murilo\AxeCapital`). Para escolher outro lugar:
+> `iex "& { $(irm <url>) } -InstallDir 'D:\Axe'"`.
+
 Versão curta, já dentro do PowerShell:
 
 ```powershell
@@ -238,9 +242,45 @@ exatamente como você deixou. Resultados simulados de P&L nunca são persistidos
 
 ---
 
-## 8. Próximos passos sugeridos
+## 8. Cérebro de aprendizado de cada agente
 
-1. Estratégias plugáveis por agente (`Strategy` já é uma interface) + backtesting.
+Cada agente tem uma **memória própria e explicável** (`backend/src/agents/learning.ts`). Nada de caixa preta:
+todo trade fechado vira uma **lição**.
+
+**Como funciona**
+
+1. **Decomposição do setup** — no momento da entrada o engine fotografa o contexto e o quebra em *features*
+   discretas: `regime`, `side`, `volatility`, `momentum`, `liquidity`, `session` (asia/london/ny/late),
+   `spread` (tight/normal/wide), `news` (clear/near/imminent), `aligned` (operou a favor do momentum?),
+   faixas de `technical`, `macro`, `confidence` e `risk/reward`.
+2. **Registro do resultado** — ao bater SL/TP o agente grava `pnl`, `R múltiplo`, tempo em posição e
+   atualiza as estatísticas de **cada feature** (amostras, win rate, P&L, R médio).
+3. **Post-mortem automático** — a lição guarda o que deu **certo (✓)** e **errado (✕)** em linguagem de mesa:
+   *“✓ traded with the bearish momentum”, “✓ technical score 83/100”, “✕ spread 1.50x normal at entry”,
+   “✕ volatility extreme”* + um veredito: *“Clean 2.6R — repeat this setup family.”*
+4. **Uso na próxima decisão** — antes de abrir, o scout consulta a memória:
+   * win rate suavizado (Laplace) e peso proporcional à amostra (confiança total a partir de 10 trades);
+   * resultado: `delta` de **−20 a +20 pontos de confiança** e um veredito `TAKE / NEUTRAL / AVOID`;
+   * `AVOID` forte (≥6 trades e ≤30% de acerto) faz o **scout nem abrir a ideia** (“Skipping this EURUSD setup —
+     memory: event proximity = imminent is 22% over 9 trades”) e dá ao **Risk Manager** um motivo extra de veto
+     (`learned pattern — …`);
+   * `TAKE` soma confiança e aparece no painel de pipeline como **🧠 Agent memory +7 conf**.
+5. **Calibração** — o cérebro compara a confiança prevista com o acerto real por faixa (ex.: `conf 70-79 → 64% real`),
+   então o agente aprende também quando está otimista demais.
+
+**Onde ver**: selecione um agente no escritório → *Agent inspector* → **🧠 Brain**. O modal mostra
+lições, hit rate, expectancy em R, profit factor, **setups que funcionam**, **setups para evitar**,
+calibração e o diário completo com ✓/✕ por trade. Dá para apagar a memória de um agente ali mesmo.
+
+A memória é persistida em `data/memory.json`, com chave estável `ROLE|nome|ativo` — ou seja,
+**sobrevive a reinícios e às atualizações do instalador**. `GET /api/brains` devolve o ranking
+de todos os cérebros (amostras, win rate, expectancy, P&L aprendido).
+
+---
+
+## 9. Próximos passos sugeridos
+
+1. Estratégias plugáveis por agente (`Strategy` já é uma interface) + backtesting sobre as lições gravadas.
 2. Persistência do journal (SQLite) e relatórios por agente.
 3. Dados reais de candles do MT5 alimentando diretamente os indicadores.
 4. Trailing stop / parcial / breakeven no `ExecutionEngine`.

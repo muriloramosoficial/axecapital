@@ -92,6 +92,7 @@ export interface Opportunity {
   lots?: number;
   rejectionReason?: string;
   ownerAgentId?: string;
+  brain?: { delta: number; verdict: 'TAKE' | 'NEUTRAL' | 'AVOID'; reason: string; support: number };
   agentTrail: { role: AgentRole; agentId: string; at: number }[];
   aiAssisted?: boolean;
 }
@@ -201,4 +202,38 @@ export interface RoleMeta {
   emoji: string;
   accent: string;
   blurb: string;
+}
+
+export interface Lesson {
+  id: string;
+  at: number;
+  symbol: string;
+  side: 'BUY' | 'SELL';
+  pnl: number;
+  rMultiple: number;
+  result: 'WIN' | 'LOSS' | 'BREAKEVEN';
+  exitReason: string;
+  holdMs: number;
+  right: string[];
+  wrong: string[];
+  verdict: string;
+  features: Record<string, unknown>;
+}
+
+export interface BrainSummary {
+  key: string;
+  name: string;
+  role: AgentRole;
+  symbol?: string;
+  samples: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  pnl: number;
+  expectancyR: number;
+  profitFactor: number;
+  best: { key: string; label: string; n: number; winRate: number; pnl: number; r: number }[];
+  worst: { key: string; label: string; n: number; winRate: number; pnl: number; r: number }[];
+  calibration: { band: string; n: number; realized: number }[];
+  lessons: Lesson[];
 }

@@ -75,6 +75,32 @@ export function PipelinePanel() {
             </div>
           </div>
 
+          {op.brain && (
+            <div
+              className="flex items-start gap-2 rounded border px-2 py-1.5"
+              style={{
+                borderColor: op.brain.verdict === 'AVOID' ? 'rgba(240,82,82,0.3)' : op.brain.verdict === 'TAKE' ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.08)',
+                background: op.brain.verdict === 'AVOID' ? 'rgba(240,82,82,0.07)' : op.brain.verdict === 'TAKE' ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.02)',
+              }}
+            >
+              <span className="text-[12px]">🧠</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400">Agent memory</span>
+                  <span
+                    className="mono text-[11px] font-bold"
+                    style={{ color: op.brain.delta > 0 ? '#86efac' : op.brain.delta < 0 ? '#fca5a5' : '#94a3b8' }}
+                  >
+                    {op.brain.delta > 0 ? '+' : ''}
+                    {op.brain.delta} conf
+                  </span>
+                  <span className="chip ml-auto">{op.brain.verdict}</span>
+                </div>
+                <div className="text-[10px] leading-snug text-slate-400">{op.brain.reason}</div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Bar label="Technical" value={op.scores.technical} />
             <Bar label="Macro" value={op.scores.macro} />

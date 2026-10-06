@@ -20,7 +20,8 @@ import { ai } from '../ai/provider.js';
 import { atr, MomentumBreakoutStrategy, macroScore, quantScore, technicalScore } from './strategy-engine.js';
 import { evaluateRisk } from './risk-engine.js';
 import { actualFor, buildCalendar, makeBreakingNews } from './news-engine.js';
-import { loadState, saveState } from '../core/persistence.js';
+import { loadMemory, loadState, saveMemory, saveState } from '../core/persistence.js';
+import { brains, type SetupFeatures } from '../agents/learning.js';
 
 const TICK_MS = 200;
 
@@ -65,6 +66,7 @@ export class SimulationEngine {
   private stageQueue: { opId: string; at: number; fn: () => void }[] = [];
   private dayStartEquity = 100_000;
   private positionTrader = new Map<string, string>();
+  private setupMemory = new Map<string, { brainKeyRole: AgentRole; name: string; symbol?: string; features: SetupFeatures; opNumber: number }>();
   private lastMonitor = 0;
 
   get broker(): TradingBroker {
@@ -73,6 +75,11 @@ export class SimulationEngine {
 
   start() {
     this.news = buildCalendar(this.simNow);
+    const mem = loadMemory();
+    if (mem) {
+      brains.load(mem);
+      console.log(`[axe-capital] loaded learning memory for ${brains.list().length} agent brains`);
+    }
     this.restore();
     this.timer = setInterval(() => this.tick(), TICK_MS);
     this.pollMT5();
@@ -129,6 +136,10 @@ export class SimulationEngine {
       console.warn('[axe-capital] could not restore saved setup:', (err as Error).message);
       if (!agents.list().length) this.seedDesk();
     }
+  }
+
+  persistMemory() {
+    saveMemory(brains.toJSON());
   }
 
   /** Persist only what the USER chose — never simulated P&L. */
@@ -228,7 +239,27 @@ export class SimulationEngine {
       if (!signal) continue;
       if (this.activeForSymbol(scout.symbol!)) continue;
       this.cooldown.set(scout.symbol!, this.simNow + (1.5 + Math.random() * 3) * 60_000);
-      this.openOpportunity(scout, signal.side, signal.strength, signal.reason);
+
+      // ── learning brain: has this setup family been hurting me? ──────────
+      const brain = this.brainOf(scout);
+      const preview = brain.evaluate({
+        symbol: scout.symbol!,
+        side: signal.side,
+        regime: this.config.regime,
+        volatility: 'Moderate',
+        momentum: signal.side === 'BUY' ? 'Bullish' : 'Bearish',
+        liquidity: this.config.regime === 'LIQUIDITY_DROP' ? 'Low' : 'High',
+        spreadRatio: 1,
+        sessionHour: new Date(this.simNow).getUTCHours(),
+        newsInMinutes: this.nextHighImpact() ? (this.nextHighImpact()!.at - this.simNow) / 60_000 : null,
+      });
+      if (preview.verdict === 'AVOID' && Math.random() < 0.85) {
+        agents.setState(scout.id, 'WAITING', `Skipped ${scout.symbol} (learned)`, 1500);
+        this.say(scout, `Skipping this ${scout.symbol} setup — ${preview.reason}.`, 'warn');
+        bus.emit('LESSON_LEARNED', { agentId: scout.id, kind: 'SKIP', reason: preview.reason, symbol: scout.symbol });
+        continue;
+      }
+      this.openOpportunity(scout, signal.side, signal.strength, signal.reason, preview);
     }
   }
 
@@ -238,7 +269,13 @@ export class SimulationEngine {
     );
   }
 
-  private openOpportunity(scout: Agent, side: 'BUY' | 'SELL', strength: number, reason: string) {
+  private openOpportunity(
+    scout: Agent,
+    side: 'BUY' | 'SELL',
+    strength: number,
+    reason: string,
+    preview?: { delta: number; verdict: 'TAKE' | 'NEUTRAL' | 'AVOID'; reason: string; support: number },
+  ) {
     const price = this.market.getPrice(scout.symbol!)!;
     const op: Opportunity = {
       id: uid('op'),
@@ -256,6 +293,7 @@ export class SimulationEngine {
       volatility: price.volatility > 0.7 ? 'Extreme' : price.volatility > 0.45 ? 'Elevated' : price.volatility > 0.2 ? 'Moderate' : 'Low',
       liquidity: this.config.regime === 'LIQUIDITY_DROP' ? 'Low' : price.volatility > 0.6 ? 'Normal' : 'High',
     };
+    if (preview) op.brain = { delta: preview.delta, verdict: preview.verdict, reason: preview.reason, support: preview.support };
     this.opportunities.set(op.id, op);
     this.trim();
 
@@ -268,6 +306,33 @@ export class SimulationEngine {
     this.aiColor(scout, op, 'MARKET_SCOUT');
 
     this.schedule(op.id, 1500, () => this.stageTechnical(op.id));
+  }
+
+  /** Snapshot of everything the brain reasons about for a given setup. */
+  private features(op: Opportunity): SetupFeatures {
+    const price = this.market.getPrice(op.symbol);
+    const next = this.nextHighImpact();
+    const typical = (this.market.info(op.symbol)?.point ?? 0.00001) * 12;
+    return {
+      symbol: op.symbol,
+      side: op.side,
+      regime: this.config.regime,
+      volatility: (op.volatility ?? 'Moderate') as SetupFeatures['volatility'],
+      momentum: (op.momentum ?? 'Neutral') as SetupFeatures['momentum'],
+      liquidity: (op.liquidity ?? 'Normal') as SetupFeatures['liquidity'],
+      technical: op.scores.technical,
+      macro: op.scores.macro,
+      quant: op.scores.quant,
+      confidence: op.scores.confidence,
+      spreadRatio: price ? Number(Math.max(0.2, price.spread / typical).toFixed(2)) : 1,
+      sessionHour: new Date(this.simNow).getUTCHours(),
+      newsInMinutes: next ? Number(((next.at - this.simNow) / 60_000).toFixed(1)) : null,
+      riskReward: op.riskReward,
+    };
+  }
+
+  brainOf(agent: Agent) {
+    return brains.for(agent.role, agent.name, agent.symbol);
   }
 
   // ───────────────────────────────────────────────────────────── pipeline ──
@@ -345,6 +410,21 @@ export class SimulationEngine {
       op.scores.quant = score;
       op.scores.confidence = Math.round((score * 0.5 + (op.scores.technical ?? 50) * 0.3 + (op.scores.macro ?? 50) * 0.2));
       op.expectedMovePct = Number((((op.scores.confidence - 40) / 100) * (0.25 + Math.random() * 0.45)).toFixed(2));
+
+      // ── learned bias from the owner's brain ─────────────────────────────
+      const owner = op.ownerAgentId ? agents.get(op.ownerAgentId) : undefined;
+      if (owner) {
+        const verdictNow = this.brainOf(owner).evaluate(this.features(op));
+        op.brain = { delta: verdictNow.delta, verdict: verdictNow.verdict, reason: verdictNow.reason, support: verdictNow.support };
+        if (verdictNow.delta !== 0) {
+          op.scores.confidence = Math.max(1, Math.min(99, op.scores.confidence + verdictNow.delta));
+          this.say(
+            owner,
+            `${verdictNow.delta > 0 ? '+' : ''}${verdictNow.delta} confidence from experience — ${verdictNow.reason}.`,
+            verdictNow.delta > 0 ? 'good' : 'warn',
+          );
+        }
+      }
       agent.stats.analyses++;
       agents.setState(agent.id, 'SUCCESS', `Edge ${score}/100`, 600);
       bus.emit('QUANT_ANALYSIS_COMPLETED', { opId, score, confidence: op.scores.confidence });
@@ -395,6 +475,10 @@ export class SimulationEngine {
       op.takeProfit = verdict.takeProfit;
       op.lots = verdict.lots;
 
+      if (op.brain?.verdict === 'AVOID' && verdict.approved) {
+        verdict.approved = false;
+        verdict.reason = `learned pattern — ${op.brain.reason}`;
+      }
       if (!verdict.approved) {
         op.status = 'REJECTED';
         op.stage = 'DONE';
@@ -486,6 +570,16 @@ export class SimulationEngine {
         pos.agentId = op.ownerAgentId ?? agent.id;
       }
       if (result.orderId) this.positionTrader.set(result.orderId, agent.id);
+      const ownerForMemory = op.ownerAgentId ? agents.get(op.ownerAgentId) : agent;
+      if (result.orderId && ownerForMemory) {
+        this.setupMemory.set(result.orderId, {
+          brainKeyRole: ownerForMemory.role,
+          name: ownerForMemory.name,
+          symbol: ownerForMemory.symbol,
+          features: this.features(op),
+          opNumber: op.number,
+        });
+      }
       const owner = op.ownerAgentId ? agents.get(op.ownerAgentId) : undefined;
       if (owner) {
         owner.openSymbol = op.symbol;
@@ -568,6 +662,39 @@ export class SimulationEngine {
         );
         bus.emit('CAMERA_FOCUS', { deskId: owner.deskId, agentId: owner.id, label: 'Trade result' });
       }
+      // ── learning: write the lesson into the agent's brain ───────────────
+      const mem = this.setupMemory.get(p.id);
+      if (mem) {
+        const risk = Math.abs((p.entry ?? trade.entry) - (trade.stopLoss ?? trade.entry)) || 1e-9;
+        const moved = (trade.exit - trade.entry) * (trade.side === 'BUY' ? 1 : -1);
+        const brain = brains.for(mem.brainKeyRole, mem.name, mem.symbol);
+        const lesson = brain.record({
+          id: trade.id,
+          at: this.simNow,
+          features: mem.features,
+          pnl: trade.pnl,
+          rMultiple: moved / risk,
+          exitReason: trade.reason,
+          holdMs: trade.durationMs,
+        });
+        this.setupMemory.delete(p.id);
+        saveMemory(brains.toJSON());
+        bus.emit('LESSON_LEARNED', {
+          agentId: p.agentId,
+          agentName: mem.name,
+          brainKey: brain.key,
+          opNumber: mem.opNumber,
+          lesson,
+          samples: brain.samples,
+          winRate: brain.winRate,
+          expectancyR: brain.expectancyR,
+        });
+        if (owner) {
+          const headline = lesson.result === 'WIN' ? lesson.right[0] : lesson.wrong[0];
+          this.say(owner, `Noted: ${headline ?? lesson.verdict} · ${brain.samples} trades in memory, ${(brain.winRate * 100).toFixed(0)}% hit rate.`, lesson.result === 'WIN' ? 'good' : 'warn');
+        }
+      }
+
       const traderId = this.positionTrader.get(p.id);
       const traderAgent = traderId ? agents.get(traderId) : undefined;
       if (traderAgent && traderAgent.id !== owner?.id) {

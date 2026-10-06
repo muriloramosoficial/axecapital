@@ -1,4 +1,4 @@
-import type { AIConfig, Agent, AgentRole, SymbolInfo } from '../types';
+import type { AIConfig, Agent, AgentRole, BrainSummary, SymbolInfo } from '../types';
 
 const json = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const res = await fetch(url, {
@@ -23,6 +23,9 @@ export const api = {
   reset: () => json<any>('/api/sim/reset', { method: 'POST' }),
   injectEvent: () => json<any>('/api/sim/event', { method: 'POST' }),
   closePosition: (id: string) => json<any>(`/api/positions/${id}/close`, { method: 'POST' }),
+  brain: (id: string) => json<{ agent: any; brain: BrainSummary }>(`/api/agents/${id}/brain`),
+  resetBrain: (id: string) => json<any>(`/api/agents/${id}/brain/reset`, { method: 'POST' }),
+  brains: () => json<{ brains: any[] }>('/api/brains'),
   aiConfig: () => json<AIConfig>('/api/ai/config'),
   setAiConfig: (patch: Partial<AIConfig>) => json<AIConfig>('/api/ai/config', { method: 'POST', body: JSON.stringify(patch) }),
   aiModels: () => json<{ models: string[] }>('/api/ai/models'),
