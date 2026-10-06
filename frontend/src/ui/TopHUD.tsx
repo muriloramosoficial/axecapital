@@ -24,13 +24,16 @@ function Stat({
   );
 }
 
+/** Abre o backoffice (outra aba) na seção pedida. */
+const openAdmin = (section = 'integracoes') => window.open(`/admin#${section}`, '_blank');
+
 export function TopHUD({
-  onOpenSettings,
-  onOpenHire,
+  onOpenSettings = (tab) => openAdmin(tab === 'ai' ? 'ia' : 'integracoes'),
+  onOpenHire = () => openAdmin('agentes'),
 }: {
-  onOpenSettings: (tab?: 'mt5' | 'ai') => void;
-  onOpenHire: () => void;
-}) {
+  onOpenSettings?: (tab?: 'mt5' | 'ai') => void;
+  onOpenHire?: () => void;
+} = {}) {
   const { account, config, simNow, nextNews, connected, mt5Connected, agents, banner, ai } = useStore();
   const aiOn = !!ai?.enabled;
   const aiAgents = agents.filter((a) => a.config?.useAI).length;

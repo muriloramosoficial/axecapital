@@ -20,6 +20,59 @@ export type CameraMode = 'director' | 'follow' | 'manual';
 
 const HUD_MODES: HudMode[] = ['full', 'broadcast', 'clean'];
 
+/** Painéis que o backoffice pode ligar/desligar individualmente. */
+export type HudKey =
+  | 'topHud'
+  | 'pipeline'
+  | 'news'
+  | 'briefing'
+  | 'wire'
+  | 'inspector'
+  | 'scoreboard'
+  | 'comms'
+  | 'lab'
+  | 'journal'
+  | 'marketRail'
+  | 'controlBar'
+  | 'captions'
+  | 'resultCard'
+  | 'spotlight'
+  | 'modeNotice'
+  | 'watermark';
+
+export const HUD_CATALOG: { key: HudKey; label: string; hint: string; group: string }[] = [
+  { key: 'topHud', label: 'Barra da conta', hint: 'Saldo, equity, P&L do dia, posições, win rate', group: 'Topo' },
+  { key: 'pipeline', label: 'Pipeline de análise', hint: 'Scout → Technical → … → Execution, com os scores', group: 'Coluna esquerda' },
+  { key: 'news', label: 'Calendário macro', hint: 'Agenda de CPI/NFP/FOMC com contagem regressiva', group: 'Coluna esquerda' },
+  { key: 'briefing', label: 'Market briefing', hint: 'Resumo da IA sobre as manchetes', group: 'Coluna esquerda' },
+  { key: 'wire', label: 'News wire', hint: 'Manchetes do crawler de notícias', group: 'Coluna esquerda' },
+  { key: 'inspector', label: 'Inspetor do agente', hint: 'Ficha do agente selecionado', group: 'Coluna esquerda' },
+  { key: 'scoreboard', label: 'Placar rotativo', hint: 'Ranking de P&L, precisão, produção e setups', group: 'Coluna esquerda' },
+  { key: 'comms', label: 'Desk comms', hint: 'Conversa entre os agentes', group: 'Coluna direita' },
+  { key: 'lab', label: 'Research lab', hint: 'Setups campeões, candidatos e descobertas', group: 'Coluna direita' },
+  { key: 'journal', label: 'Trade journal', hint: 'Histórico de trades encerrados', group: 'Coluna direita' },
+  { key: 'marketRail', label: 'Faixa de preços', hint: 'Ticker de pares no rodapé', group: 'Rodapé' },
+  { key: 'controlBar', label: 'Barra de controles', hint: 'Start/pause, velocidade, regime, câmera', group: 'Rodapé' },
+  { key: 'captions', label: 'Legendas das falas', hint: 'Lower-third com o que o agente está dizendo', group: 'Transmissão' },
+  { key: 'resultCard', label: 'Card de resultado', hint: 'WIN/LOSS com R e assinatura do agente', group: 'Transmissão' },
+  { key: 'spotlight', label: 'Spotlight', hint: 'Destaque do agente em foco da câmera', group: 'Transmissão' },
+  { key: 'modeNotice', label: 'Aviso de modo', hint: 'Lembrete de simulação / MT5 papel / MT5 live', group: 'Transmissão' },
+  { key: 'watermark', label: "Marca d'água", hint: 'Logo Axe Capital no canto (some com a HUD desligada? não)', group: 'Transmissão' },
+];
+
+const DEFAULT_HUD_PREFS = Object.fromEntries(HUD_CATALOG.map((h) => [h.key, true])) as Record<HudKey, boolean>;
+
+function readHudPrefs(): Record<HudKey, boolean> {
+  try {
+    const raw = localStorage.getItem('axe.hud.prefs');
+    if (!raw) return { ...DEFAULT_HUD_PREFS };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_HUD_PREFS, ...parsed };
+  } catch {
+    return { ...DEFAULT_HUD_PREFS };
+  }
+}
+
 function readLS<T>(key: string, fallback: T, parse: (raw: string) => T | null): T {
   try {
     const raw = localStorage.getItem(key);
@@ -159,6 +212,13 @@ interface State {
   setSpotlight: (v: { agentId: string; shot: string; reason: string } | null) => void;
   cycleHud: () => void;
   setUiScale: (v: number) => void;
+  hudOn: boolean;
+  hudPrefs: Record<HudKey, boolean>;
+  setHudOn: (v: boolean) => void;
+  toggleHudOn: () => void;
+  setHudPref: (key: HudKey, value: boolean) => void;
+  setAllHudPrefs: (value: boolean) => void;
+  reloadHudFromStorage: () => void;
   select: (id: string | null) => void;
   focusDesk: (deskId: string, agentId: string, label: string) => void;
   applySnapshot: (s: any) => void;
@@ -204,6 +264,8 @@ export const useStore = create<State>((set, get) => ({
   ),
   spotlight: null,
   hudMode: readLS<HudMode>('axe.hudMode', 'full', (r) => (HUD_MODES.includes(r as HudMode) ? (r as HudMode) : null)),
+  hudOn: readLS<boolean>('axe.hud.on', true, (r) => (r === '0' ? false : r === '1' ? true : null)),
+  hudPrefs: readHudPrefs(),
   uiScale: readLS<number>('axe.uiScale', 1, (r) => {
     const n = Number(r);
     return Number.isFinite(n) && n >= 0.7 && n <= 1.4 ? n : null;
@@ -228,6 +290,33 @@ export const useStore = create<State>((set, get) => ({
     const next = HUD_MODES[(HUD_MODES.indexOf(get().hudMode) + 1) % HUD_MODES.length];
     writeLS('axe.hudMode', next);
     set({ hudMode: next });
+  },
+  setHudOn: (v) => {
+    writeLS('axe.hud.on', v ? '1' : '0');
+    set({ hudOn: v });
+  },
+  toggleHudOn: () => {
+    const v = !get().hudOn;
+    writeLS('axe.hud.on', v ? '1' : '0');
+    set({ hudOn: v });
+  },
+  setHudPref: (key, value) => {
+    const next = { ...get().hudPrefs, [key]: value };
+    writeLS('axe.hud.prefs', JSON.stringify(next));
+    set({ hudPrefs: next });
+  },
+  setAllHudPrefs: (value) => {
+    const next = Object.fromEntries(HUD_CATALOG.map((h) => [h.key, value])) as Record<HudKey, boolean>;
+    writeLS('axe.hud.prefs', JSON.stringify(next));
+    set({ hudPrefs: next });
+  },
+  /** Chamado quando a outra aba (backoffice) altera as preferências. */
+  reloadHudFromStorage: () => {
+    set({
+      hudPrefs: readHudPrefs(),
+      hudOn: localStorage.getItem('axe.hud.on') !== '0',
+      uiScale: Number(localStorage.getItem('axe.uiScale') ?? '1') || 1,
+    });
   },
   setUiScale: (v) => {
     const clamped = Math.min(1.4, Math.max(0.7, Number(v.toFixed(2))));
@@ -376,4 +465,15 @@ export function connect() {
     setTimeout(connect, 1500);
   };
   socket.onerror = () => socket?.close();
+}
+
+
+// O backoffice roda em outra aba: refletimos as mudanças de HUD na hora.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (!e.key) return;
+    if (e.key.startsWith('axe.hud') || e.key === 'axe.uiScale' || e.key.startsWith('axe.watermark')) {
+      useStore.getState().reloadHudFromStorage();
+    }
+  });
 }

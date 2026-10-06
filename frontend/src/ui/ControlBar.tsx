@@ -5,11 +5,12 @@ import type { MarketRegime } from '../types';
 const SPEEDS = [1, 2, 5, 10, 20, 100];
 const REGIMES: MarketRegime[] = ['TRENDING', 'RANGING', 'HIGH_VOLATILITY', 'LOW_VOLATILITY', 'NEWS_SHOCK', 'LIQUIDITY_DROP'];
 
-export function ControlBar({ onToggleTv }: { onToggleTv: () => void }) {
+export function ControlBar({ onToggleTv }: { onToggleTv?: () => void } = {}) {
   const config = useStore((s) => s.config);
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
   const tvEnabled = useStore((s) => s.tvEnabled);
+  const setTv = useStore((s) => s.setTv);
 
   return (
     <div className="glass pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg px-3 py-2">
@@ -90,8 +91,13 @@ export function ControlBar({ onToggleTv }: { onToggleTv: () => void }) {
         ))}
       </div>
       <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-400">
-        <input type="checkbox" checked={tvEnabled} onChange={() => onToggleTv()} className="accent-emerald-400" />
-        Telão: marca {tvEnabled ? '' : '/ gráfico'}
+        <input
+          type="checkbox"
+          checked={tvEnabled}
+          onChange={() => (onToggleTv ? onToggleTv() : setTv(!tvEnabled))}
+          className="accent-emerald-400"
+        />
+        Telão: {tvEnabled ? 'marca' : 'gráfico'}
       </label>
 
       <div className="ml-auto flex items-center gap-2 pr-1 text-[9px] uppercase tracking-[0.18em] text-slate-500">

@@ -467,6 +467,35 @@ monetização.
   `localStorage.setItem('axe.watermark.handle','@seucanal')` e
   `localStorage.setItem('axe.watermark.corner','br')` (`tl|tr|bl|br`).
 
+## 9.8 Backoffice `/admin` — toda a configuração fora da cena
+
+A tela principal agora é **só o escritório**. No canto superior direito sobraram
+**dois botões**:
+
+| Botão | O que faz |
+| --- | --- |
+| `▦ HUD` | liga/desliga a interface por cima da cena (atalho **H**). Mostra apenas os painéis liberados no backoffice. |
+| `⚙ Admin` | abre `/admin` **em outra aba** — o backoffice. |
+
+O backoffice tem seis seções (o endereço guarda a seção no hash, ex.
+`/admin#ia`):
+
+* **HUD & transmissão** — interruptor geral da HUD, presets (completo, transmissão,
+  limpo, só placar), checkbox painel a painel (Top HUD, pipeline, notícias, wire,
+  briefing, inspector, placar, comms, lab, journal, trilho de mercado, barra de
+  controles, legendas, lower-third, spotlight, aviso de modo, marca d'água) e escala
+  da interface;
+* **Mesa & simulação** — start/pause, velocidade 1x–100x, regime de mercado, reset
+  do dia, câmera e interruptor do telão;
+* **MetaTrader 5** — conexão com a conta já logada e escolha dos ativos;
+* **Inteligência artificial** — LM Studio / NVIDIA NIM / provider custom, modelo e teste;
+* **Agentes** — tabela com função, ativo, estado e resultado do dia + **Contratar agente**;
+* **Telão & marca** — slides da playlist, handle e canto da marca d'água.
+
+As duas abas conversam por `localStorage` (`axe.hud.on`, `axe.hud.prefs`,
+`axe.uiScale`, `axe.watermark*`): marcou um painel no admin, ele aparece na aba do
+escritório na hora, sem recarregar.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

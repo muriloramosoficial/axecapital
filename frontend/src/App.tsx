@@ -11,32 +11,50 @@ import { Watermark } from './ui/Watermark';
 import { CommsFeed } from './ui/CommsFeed';
 import { TradeJournal } from './ui/TradeJournal';
 import { AgentInspector, BriefingPanel, MarketRail, NewsPanel, WirePanel } from './ui/SidePanels';
-import { HireAgentModal } from './ui/HireAgentModal';
-import { SettingsModal } from './ui/SettingsModal';
 import { BrainModal } from './ui/BrainModal';
 import { ModeNotice } from './ui/ModeNotice';
-import { HudControls } from './ui/HudControls';
 import { SpotlightCard } from './ui/SpotlightCard';
 import { TradingViewWidget } from './three/TradingViewScreen';
 import { connect, useStore } from './state/store';
 
+/**
+ * Tela principal = o escritório.
+ *
+ * Toda a configuração (MT5, IA, agentes, telão, quais painéis aparecem) mora
+ * no backoffice, em /admin. Aqui em cima ficam só dois botões: ligar/desligar a
+ * HUD e abrir o backoffice em outra aba.
+ */
 export default function App() {
-  const [hire, setHire] = useState(false);
-  const [settings, setSettings] = useState<null | 'mt5' | 'ai'>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [brainAgent, setBrainAgent] = useState<string | null>(null);
   const connected = useStore((s) => s.connected);
-  const tvEnabled = useStore((s) => s.tvEnabled);
-  const setTv = useStore((s) => s.setTv);
-  const hudMode = useStore((s) => s.hudMode);
   const uiScale = useStore((s) => s.uiScale);
+  const hudOn = useStore((s) => s.hudOn);
+  const prefs = useStore((s) => s.hudPrefs);
+  const toggleHudOn = useStore((s) => s.toggleHudOn);
 
   useEffect(() => {
     connect();
   }, []);
 
-  const showPanels = hudMode === 'full';
-  const showHud = hudMode !== 'clean';
+  // H continua ligando/desligando a HUD; F entra em tela cheia
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (e.key === 'h' || e.key === 'H') toggleHudOn();
+      else if (e.key === 'f' || e.key === 'F') {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        else document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleHudOn]);
+
+  const on = (k: keyof typeof prefs) => hudOn && prefs[k];
+  const leftColumn = on('pipeline') || on('news') || on('briefing') || on('wire') || on('inspector') || on('scoreboard');
+  const rightColumn = on('comms') || on('lab') || on('journal');
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#8e9bad]">
@@ -44,10 +62,31 @@ export default function App() {
         <Scene />
       </div>
 
-      {/* subtle depth vignette over the office */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(10,16,24,0.38)_100%)]" />
 
-      <HudControls />
+      {/* ── os dois únicos botões da tela principal ───────────────────── */}
+      <div className="pointer-events-auto absolute right-3 top-3 z-50 flex items-center gap-2">
+        <button
+          onClick={toggleHudOn}
+          title={`${hudOn ? 'Esconder' : 'Mostrar'} a HUD (tecla H) — o que aparece é definido no backoffice`}
+          className={`glass flex h-9 items-center gap-2 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+            hudOn ? 'text-emerald-300' : 'text-slate-400 hover:text-slate-100'
+          }`}
+        >
+          <span className="text-[13px]">{hudOn ? '▦' : '⬚'}</span>
+          HUD
+        </button>
+        <a
+          href="/admin"
+          target="_blank"
+          rel="noreferrer"
+          title="Abrir o backoffice de configurações em outra aba"
+          className="glass flex h-9 items-center gap-2 rounded-full px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 transition hover:text-sky-300"
+        >
+          <span className="text-[13px]">⚙</span>
+          Admin
+        </a>
+      </div>
 
       <div
         className="pointer-events-none absolute inset-0 origin-top-left"
@@ -55,40 +94,40 @@ export default function App() {
       >
         <div
           className={`flex h-full w-full flex-col gap-2 p-2 transition-opacity duration-300 sm:p-3 ${
-            showHud ? 'opacity-100' : 'pointer-events-none opacity-0'
+            hudOn ? 'opacity-100' : 'pointer-events-none opacity-0'
           }`}
         >
-          <TopHUD onOpenSettings={(tab) => setSettings(tab ?? 'mt5')} onOpenHire={() => setHire(true)} />
+          {on('topHud') ? <TopHUD /> : <div />}
 
           <div className="flex min-h-0 flex-1 gap-2">
-            {/* left column */}
-            {showPanels && (
+            {leftColumn && (
               <div className="pointer-events-auto hidden min-h-0 w-[clamp(250px,20vw,340px)] flex-col gap-2 overflow-y-auto pr-0.5 lg:flex">
-                <PipelinePanel />
-                <NewsPanel />
-                <BriefingPanel />
-                <WirePanel />
-                <AgentInspector onOpenChart={setChartSymbol} onOpenBrain={setBrainAgent} />
-                <Scoreboard compact />
+                {on('pipeline') && <PipelinePanel />}
+                {on('news') && <NewsPanel />}
+                {on('briefing') && <BriefingPanel />}
+                {on('wire') && <WirePanel />}
+                {on('inspector') && <AgentInspector onOpenChart={setChartSymbol} onOpenBrain={setBrainAgent} />}
+                {on('scoreboard') && <Scoreboard compact />}
               </div>
             )}
 
             <div className="flex-1" />
 
-            {/* right column */}
-            {showPanels && (
+            {rightColumn && (
               <div className="pointer-events-auto hidden min-h-0 w-[clamp(270px,22vw,360px)] flex-col gap-2 overflow-y-auto pr-0.5 xl:flex">
-                <CommsFeed />
-                <LabPanel />
-                <TradeJournal />
+                {on('comms') && <CommsFeed />}
+                {on('lab') && <LabPanel />}
+                {on('journal') && <TradeJournal />}
               </div>
             )}
           </div>
 
-          <div className="pointer-events-auto">
-            <MarketRail />
-          </div>
-          {showPanels && <ControlBar onToggleTv={() => setTv(!tvEnabled)} />}
+          {on('marketRail') && (
+            <div className="pointer-events-auto">
+              <MarketRail />
+            </div>
+          )}
+          {on('controlBar') && <ControlBar />}
         </div>
       </div>
 
@@ -101,7 +140,7 @@ export default function App() {
         </div>
       )}
 
-      {chartSymbol && showHud && (
+      {chartSymbol && (
         <div className="pointer-events-auto absolute bottom-[96px] right-3 z-30 h-[min(40vh,340px)] w-[min(42vw,520px)] overflow-hidden rounded-lg border border-white/10 bg-[#05080d] shadow-panel xl:right-[calc(clamp(270px,22vw,360px)+20px)]">
           <div className="flex items-center justify-between border-b border-white/5 px-3 py-1.5">
             <span className="panel-title">TradingView · {chartSymbol}</span>
@@ -115,21 +154,14 @@ export default function App() {
         </div>
       )}
 
-      {/* placar rotativo + legendas: a cara da transmissão */}
-      {hudMode === 'broadcast' && (
-        <div className="pointer-events-auto absolute bottom-[84px] left-3 z-30">
-          <Scoreboard />
-        </div>
-      )}
-      <Watermark />
-      {hudMode !== 'clean' && <Captions />}
-      {hudMode !== 'clean' && <ResultCard />}
-      {showHud && <SpotlightCard />}
-      {showHud && <ModeNotice onOpenSettings={() => setSettings('mt5')} />}
+      {/* camada de transmissão */}
+      {prefs.watermark && <Watermark />}
+      {on('captions') && <Captions />}
+      {on('resultCard') && <ResultCard />}
+      {on('spotlight') && <SpotlightCard />}
+      {on('modeNotice') && <ModeNotice onOpenSettings={() => window.open('/admin', '_blank')} />}
 
       {brainAgent && <BrainModal agentId={brainAgent} onClose={() => setBrainAgent(null)} />}
-      {hire && <HireAgentModal onClose={() => setHire(false)} />}
-      {settings && <SettingsModal initialTab={settings} onClose={() => setSettings(null)} />}
     </div>
   );
 }
