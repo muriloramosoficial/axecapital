@@ -24,6 +24,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+# PowerShell 7.3+ pode transformar stderr de programas nativos em erro terminante.
+# O git escreve progresso no stderr o tempo todo, então desligamos esse comportamento.
+if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -ErrorAction SilentlyContinue) {
+    $global:PSNativeCommandUseErrorActionPreference = $false
+}
 
 # Em máquinas com ExecutionPolicy AllSigned/Restricted o PowerShell se recusa a
 # carregar npm.ps1 (que vem sem assinatura digital). Liberamos só para ESTE
@@ -55,6 +60,33 @@ function Have-Npm {
     return $false
 }
 
+# git SEMPRE através do cmd.exe com 2>&1 feito DENTRO do cmd: assim o progresso
+# que o git manda para o stderr nunca chega ao PowerShell como NativeCommandError.
+function Git {
+    $parts = foreach ($a in $args) { if ("$a" -match '[\s&|<>^]') { '"' + "$a" + '"' } else { "$a" } }
+    $line = 'git ' + ($parts -join ' ') + ' 2>&1'
+    $out = & $script:CmdExe '/d' '/c' $line
+    $script:GitExit = $LASTEXITCODE
+    return $out
+}
+# devolve só a primeira linha útil (para rev-parse e afins)
+function GitLine {
+    $out = Git @args
+    if ($script:GitExit -ne 0) { return $null }
+    $first = @($out | Where-Object { "$_".Trim() }) | Select-Object -First 1
+    if ($null -eq $first) { return $null }
+    return "$first".Trim()
+}
+# roda um programa nativo pelo cmd.exe e devolve a saída (stderr incluso).
+function Run {
+    $parts = foreach ($a in $args) { if ("$a" -match '[\s&|<>^]') { '"' + "$a" + '"' } else { "$a" } }
+    $line = ($parts -join ' ') + ' 2>&1'
+    $out = & $script:CmdExe '/d' '/c' $line
+    $script:RunExit = $LASTEXITCODE
+    return $out
+}
+function Short($sha) { if ($sha -and $sha.Length -ge 7) { return $sha.Substring(0, 7) } return "$sha" }
+
 Write-Host @"
 
    ╔══════════════════════════════════════════════════════════════╗
@@ -74,7 +106,7 @@ function Ensure-Tool($cmd, $wingetId, $label) {
     if (Have $cmd) { Ok "$label ok"; return }
     if (-not (Have 'winget')) { Fail "$label não encontrado e o winget não está disponível. Instale $label manualmente e rode de novo." }
     Say "instalando $label via winget (pode demorar um pouco)…"
-    winget install --id $wingetId --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
+    Run winget install --id $wingetId --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
     Refresh-Path
     if (-not (Have $cmd)) { Fail "$label foi instalado mas não está no PATH. Feche e reabra o terminal e rode o comando novamente." }
     Ok "$label instalado"
@@ -113,29 +145,41 @@ $changedFiles = @()
 if ($isUpdate) {
     Step 'Procurando atualizações na branch'
     Push-Location $InstallDir
-    git remote set-url origin $Repo | Out-Null
-    git fetch origin $Branch --depth 1 2>&1 | Out-Null
-    $localSha  = (git rev-parse HEAD 2>$null)
-    $remoteSha = (git rev-parse FETCH_HEAD 2>$null)
+    Git remote set-url origin $Repo | Out-Null
+    $fetchOut = Git fetch origin $Branch --depth 1
+    if ($script:GitExit -ne 0) {
+        $detail = ($fetchOut | Select-Object -Last 6) -join [Environment]::NewLine
+        Pop-Location
+        Warn 'o git não conseguiu falar com o GitHub:'
+        Say $detail DarkGray
+        Fail "falha ao baixar a branch $Branch. Confira a internet/proxy e rode o comando de novo."
+    }
+    $localSha  = GitLine rev-parse HEAD
+    $remoteSha = GitLine rev-parse FETCH_HEAD
+    if (-not $remoteSha) {
+        Pop-Location
+        Fail "o git não devolveu o commit remoto da branch $Branch. Rode de novo ou apague a pasta $InstallDir para reinstalar do zero."
+    }
 
     if ($localSha -eq $remoteSha -and -not $Force) {
-        Ok "já está na última versão ($($localSha.Substring(0,7)))"
+        Ok "já está na última versão ($(Short $localSha))"
         $codeChanged = $false
     } else {
         if ($CheckOnly) {
-            Warn "existe atualização disponível: $($localSha.Substring(0,7)) → $($remoteSha.Substring(0,7))"
+            Warn "existe atualização disponível: $(Short $localSha) → $(Short $remoteSha)"
             Pop-Location
             exit 0
         }
-        Say "atualizando $($localSha.Substring(0,7)) → $($remoteSha.Substring(0,7))" DarkGray
-        $changedFiles = @(git diff --name-only HEAD FETCH_HEAD 2>$null)
+        Say "atualizando $(Short $localSha) → $(Short $remoteSha)" DarkGray
+        $changedFiles = @(Git diff --name-only HEAD FETCH_HEAD)
 
         $kept = Backup-UserConfig $InstallDir
         if ($kept.Count) { Ok "configurações preservadas: $($kept -join ', ') (cópia em data\backups)" }
 
         # descarta apenas alterações de arquivos versionados; data\ e .env são
         # ignorados pelo git e continuam intactos
-        git reset --hard FETCH_HEAD 2>&1 | Out-Null
+        Git reset --hard FETCH_HEAD | Out-Null
+        if ($script:GitExit -ne 0) { Pop-Location; Fail 'não consegui aplicar a atualização (git reset). Feche o escritório se ele estiver rodando e tente de novo.' }
         Ok 'código atualizado'
     }
     Pop-Location
@@ -146,7 +190,8 @@ if ($isUpdate) {
         Warn "pasta já existe sem repositório git, movendo para $InstallDir.bak-$stamp"
         Move-Item $InstallDir "$InstallDir.bak-$stamp"
     }
-    git clone --branch $Branch --single-branch --depth 1 $Repo $InstallDir 2>&1 | Out-Null
+    $cloneOut = Git clone --branch $Branch --single-branch --depth 1 $Repo $InstallDir
+    if ($script:GitExit -ne 0) { Say (($cloneOut | Select-Object -Last 6) -join [Environment]::NewLine) DarkGray }
     if (-not (Test-Path $InstallDir)) { Fail "falha ao clonar $Repo (branch $Branch). Se o repositório for privado, faça login no Git Credential Manager ou rode 'gh auth login' antes." }
     Ok 'repositório clonado'
 }
@@ -183,15 +228,20 @@ if (-not $SkipBridge) {
     foreach ($c in @('py', 'python')) { if (Have $c) { $py = $c; break } }
     if (-not $py -and (Have 'winget')) {
         Say 'instalando Python via winget…'
-        winget install --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
+        Run winget install --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
         Refresh-Path
         foreach ($c in @('py', 'python')) { if (Have $c) { $py = $c; break } }
     }
     if ($py) {
         $needPy = $Force -or -not $isUpdate -or ($changedFiles -match '^mt5-bridge/')
         if ($needPy) {
-            & $py -m pip install --quiet --upgrade pip 2>&1 | Out-Null
-            & $py -m pip install --quiet -r (Join-Path $InstallDir 'mt5-bridge\requirements.txt')
+            Run $py -m pip install --quiet --upgrade pip | Out-Null
+            $pipOut = Run $py -m pip install --quiet -r (Join-Path $InstallDir 'mt5-bridge\requirements.txt')
+            if ($script:RunExit -ne 0) {
+                Warn 'não consegui instalar as dependências Python da ponte MT5:'
+                Say ($pipOut | Select-Object -Last 6 | Out-String).Trim() DarkGray
+                Say 'o escritório continua funcionando em SIMULAÇÃO; rode o instalador de novo depois.' DarkGray
+            }
         }
         Ok 'ponte MT5 pronta'
     } else {
