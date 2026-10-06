@@ -6,7 +6,9 @@ export type AgentRole =
   | 'RISK_MANAGER'
   | 'PORTFOLIO_MANAGER'
   | 'TRADER'
-  | 'NEWS_ANALYST';
+  | 'NEWS_ANALYST'
+  | 'BACKTEST_ANALYST'
+  | 'STRATEGY_DEVELOPER';
 
 export type AgentState =
   | 'IDLE'
@@ -31,7 +33,7 @@ export type MarketRegime =
 export interface Desk {
   id: string;
   label: string;
-  sector: 'MARKET_INTELLIGENCE' | 'RESEARCH' | 'RISK' | 'EXECUTION' | 'NEWSROOM';
+  sector: 'MARKET_INTELLIGENCE' | 'RESEARCH' | 'RISK' | 'EXECUTION' | 'NEWSROOM' | 'LAB';
   x: number;
   z: number;
   rot: number;

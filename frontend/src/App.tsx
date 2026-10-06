@@ -3,6 +3,7 @@ import { Scene } from './three/Scene';
 import { TopHUD } from './ui/TopHUD';
 import { ControlBar } from './ui/ControlBar';
 import { PipelinePanel } from './ui/PipelinePanel';
+import { LabPanel } from './ui/LabPanel';
 import { CommsFeed } from './ui/CommsFeed';
 import { TradeJournal } from './ui/TradeJournal';
 import { AgentInspector, MarketRail, NewsPanel } from './ui/SidePanels';
@@ -71,6 +72,7 @@ export default function App() {
             {showPanels && (
               <div className="pointer-events-auto hidden min-h-0 w-[clamp(270px,22vw,360px)] flex-col gap-2 overflow-hidden xl:flex">
                 <CommsFeed />
+                <LabPanel />
                 <TradeJournal />
               </div>
             )}
@@ -84,7 +86,7 @@ export default function App() {
       </div>
 
       {!connected && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#0b1118]/92">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#0b1118]/[0.92]">
           <div className="text-center">
             <div className="text-[13px] font-semibold uppercase tracking-[0.4em] text-slate-200">Axe Capital</div>
             <div className="mt-2 text-[11px] text-slate-400">connecting to the trading floor engine…</div>

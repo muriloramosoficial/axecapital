@@ -364,6 +364,34 @@ para transmitir) e **🔌 Conectar live**. O chip do topo mostra em qual modo o 
 
 ---
 
+## 9.2 Research Lab — sala de backtest & treinamento
+
+Atrás do pregão, separada por uma parede de vidro, existe uma **sala fechada de pesquisa**
+(`RESEARCH LAB · BACKTEST & TRAINING`) com quatro mesas, rack de servidores e uma parede própria
+de telas (EQUITY / BACKTEST / OPTIMIZER / QUANT). Dois papéis novos trabalham só ali:
+`BACKTEST_ANALYST` e `STRATEGY_DEVELOPER`.
+
+O que o lab faz (`backend/src/engines/research-lab.ts`):
+
+1. **Gera setups** — cada "gene" combina 2–4 regras (RSI, EMA/SMA, ADX, Estocástico, Bollinger,
+   TRIX, momentum, inclinação) + filtro opcional de timeframe maior + SL/TP em múltiplos de ATR.
+   Novos genes nascem de ideia nova, **cruzamento** ou **refinamento** (mutação) dos melhores.
+2. **Backtesta** sobre o histórico real do ativo, descontando `COST_R = 0.12` por trade
+   (spread + slippage) e assumindo o stop primeiro quando SL e TP caem no mesmo candle.
+3. **Valida walk-forward** — busca nos primeiros 65% do histórico, validação no restante,
+   que nunca foi usado na otimização. O filtro de timeframe maior só enxerga candles já
+   fechados (sem lookahead).
+4. **Promove** só o que sobrevive: ≥14 trades in-sample, ≥50% de acerto, expectância ≥0.08R
+   **e** ≥3 trades out-of-sample com expectância positiva. Se o setup quebra fora da amostra,
+   o lab publica um aviso de *overfitting* e descarta.
+5. **Acompanha ao vivo** — cada trade real executado com um setup promovido alimenta
+   `live` (trades, acertos, P&L, R acumulado), então dá para comparar backtest × realidade.
+
+Setups promovidos entram no pipeline: quando uma oportunidade está alinhada ao setup campeão
+do ativo, ela ganha bônus de confiança (`Opportunity.setup`). O painel **Research lab** na coluna
+direita mostra campeões (IS / OOS / LIVE), candidatos em teste e as descobertas narradas pelos
+agentes. API: `GET /api/lab`; eventos: `LAB_EXPERIMENT`, `SETUP_PROMOTED`.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

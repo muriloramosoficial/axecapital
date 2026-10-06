@@ -10,7 +10,9 @@ export type AgentRole =
   | 'RISK_MANAGER'
   | 'PORTFOLIO_MANAGER'
   | 'TRADER'
-  | 'NEWS_ANALYST';
+  | 'NEWS_ANALYST'
+  | 'BACKTEST_ANALYST'
+  | 'STRATEGY_DEVELOPER';
 
 export type AgentState =
   | 'IDLE'
@@ -100,6 +102,8 @@ export interface Opportunity {
   ownerAgentId?: string;
   /** what the owner's learning brain thinks about this setup */
   brain?: { delta: number; verdict: 'TAKE' | 'NEUTRAL' | 'AVOID'; reason: string; support: number };
+  /** setup campeão da sala de backtest aplicado a esta oportunidade */
+  setup?: { name: string; id: string; aligned: boolean; delta: number; winRate: number };
   agentTrail: { role: AgentRole; agentId: string; at: number }[];
   aiAssisted?: boolean;
 }
@@ -256,6 +260,8 @@ export type EventType =
   | 'STOP_LOSS_TRIGGERED'
   | 'TAKE_PROFIT_TRIGGERED'
   | 'LESSON_LEARNED'
+  | 'LAB_EXPERIMENT'
+  | 'SETUP_PROMOTED'
   | 'NEWS_EVENT'
   | 'NEWS_RELEASED'
   | 'AGENT_STATE'

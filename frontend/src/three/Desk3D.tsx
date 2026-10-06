@@ -16,7 +16,15 @@ function screenPlan(desk: Desk, agent?: Agent): { kind: ScreenKind; symbol?: str
   const sym = agent?.symbol ?? 'EURUSD';
   const role = agent?.role;
   const plan: { kind: ScreenKind; symbol?: string }[] = [];
-  if (desk.sector === 'EXECUTION' || role === 'TRADER') {
+  if (desk.sector === 'LAB' || role === 'BACKTEST_ANALYST' || role === 'STRATEGY_DEVELOPER') {
+    plan.push(
+      { kind: 'EQUITY' },
+      { kind: 'BACKTEST' },
+      { kind: 'OPTIMIZER' },
+      { kind: 'CHART', symbol: sym },
+      { kind: 'TERMINAL' },
+    );
+  } else if (desk.sector === 'EXECUTION' || role === 'TRADER') {
     plan.push({ kind: 'EXEC' }, { kind: 'CHART', symbol: sym }, { kind: 'DOM', symbol: sym }, { kind: 'CHART', symbol: 'XAUUSD' }, { kind: 'RISK' }, { kind: 'WATCHLIST' });
   } else if (role === 'RISK_MANAGER' || desk.id === 'risk-1') {
     plan.push({ kind: 'RISK' }, { kind: 'EXEC' }, { kind: 'WATCHLIST' }, { kind: 'CHART', symbol: 'DXY' });
@@ -110,7 +118,7 @@ function Monitor({
 
 function Chair({ occupied }: { occupied: boolean }) {
   return (
-    <group position={[0, 0, 0.95]} rotation={[0, occupied ? 0 : 0.5, 0]}>
+    <group position={[0, 0, 0.95]} rotation={[0, occupied ? Math.PI : Math.PI + 0.5, 0]}>
       <mesh position={[0, 0.45, 0]} castShadow>
         <boxGeometry args={[0.52, 0.08, 0.5]} />
         <meshStandardMaterial color="#39414d" roughness={0.85} />
@@ -210,7 +218,12 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
       </mesh>
 
       <Chair occupied={!!agent} />
-      {agent && <Agent3D agent={agent} seat={[0, 1.05, 0.78]} />}
+      {/* rotação de 180°: o agente encara os monitores (que ficam em -Z local) */}
+      {agent && (
+        <group rotation={[0, Math.PI, 0]}>
+          <Agent3D agent={agent} seat={[0, 1.05, -0.78]} />
+        </group>
+      )}
 
       {highlighted && <pointLight position={[0, 1.9, 0.4]} intensity={7} distance={5.5} color="#cfe6ff" />}
 

@@ -92,7 +92,7 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
       });
     }
     // warm-up history so charts are never empty
-    for (const st of this.series.values()) this.warmup(st, 180);
+    for (const st of this.series.values()) this.warmup(st, 700);
   }
 
   private warmup(st: SeriesState, bars: number) {
@@ -149,7 +149,7 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
       shock: 0,
     };
     this.series.set(symbol, st);
-    this.warmup(st, 180);
+    this.warmup(st, 700);
   }
 
   /** Blend the simulated series towards a real price coming from MT5. */
@@ -237,7 +237,7 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
       const last = st.candles[st.candles.length - 1];
       if (!last || last.t !== bucket) {
         st.candles.push({ t: bucket, o: st.price, h: st.price, l: st.price, c: st.price, v: 0 });
-        if (st.candles.length > 400) st.candles.shift();
+        if (st.candles.length > 1200) st.candles.shift();
       } else {
         last.h = Math.max(last.h, st.price);
         last.l = Math.min(last.l, st.price);

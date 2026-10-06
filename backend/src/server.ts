@@ -10,6 +10,7 @@ import { sim } from './engines/simulation-engine.js';
 import { agents } from './agents/registry.js';
 import { DESKS, ROLE_META } from './agents/office-layout.js';
 import { ai } from './ai/provider.js';
+import { lab } from './engines/research-lab.js';
 import { brains } from './agents/learning.js';
 import type { AgentRole, MarketRegime } from './core/types.js';
 
@@ -271,6 +272,9 @@ const testPrompt = async (req: any, res: any) => {
 };
 api.post('/ai/test', testPrompt);
 
+/** Sala de pesquisa: campeões, leaderboard e descobertas. */
+api.get('/lab', (_req, res) => res.json(lab.summary()));
+
 app.use('/api', api);
 
 // serve the built frontend if present (single-process production mode)
@@ -308,6 +312,7 @@ setInterval(() => {
     mt5Connected: sim.mt5Connected,
     config: sim.config,
     ai: { enabled: ai.config.enabled, provider: ai.config.provider, model: ai.config.model },
+    lab: lab.summary(),
     agents: agents.list().map((a) => ({
       id: a.id,
       state: a.state,

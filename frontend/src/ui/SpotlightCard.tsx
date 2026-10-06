@@ -20,7 +20,7 @@ export function SpotlightCard() {
     <div className="pointer-events-none absolute bottom-[104px] left-4 z-30 max-w-[min(92vw,460px)]">
       <div
         key={agent.id}
-        className="slide-in overflow-hidden rounded-lg border border-white/10 bg-[#0b1119]/92 shadow-panel backdrop-blur-xl"
+        className="slide-in overflow-hidden rounded-lg border border-white/10 bg-[#0b1119]/[0.92] shadow-panel backdrop-blur-xl"
         style={{ borderLeft: `4px solid ${color}` }}
       >
         <div className="flex items-center gap-3 px-3 py-2">

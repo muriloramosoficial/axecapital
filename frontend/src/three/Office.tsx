@@ -16,18 +16,20 @@ function WallScreen({
   size,
   kind,
   symbol,
+  rotY = 0,
 }: {
   position: [number, number, number];
   size: [number, number];
   kind: any;
   symbol?: string;
+  rotY?: number;
 }) {
   const tex = useMemo(() => getScreen(kind, symbol), [kind, symbol]);
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, rotY, 0]}>
       <mesh>
-        <boxGeometry args={[size[0] + 0.08, size[1] + 0.08, 0.07]} />
-        <meshStandardMaterial color="#1d2530" roughness={0.42} metalness={0.35} />
+        <boxGeometry args={[size[0] + 0.07, size[1] + 0.07, 0.08]} />
+        <meshStandardMaterial color="#161c25" roughness={0.38} metalness={0.45} />
       </mesh>
       <mesh position={[0, 0, 0.04]}>
         <planeGeometry args={size} />
@@ -115,6 +117,122 @@ function WallClock({ position, rotation }: { position: [number, number, number];
         <planeGeometry args={[0.03, 0.34]} />
         <meshBasicMaterial color="#1f2937" toneMapped={false} />
       </mesh>
+    </group>
+  );
+}
+
+/** Rack de servidores que "treina" os setups — LEDs piscando. */
+function ServerRack({ position }: { position: [number, number, number] }) {
+  const leds = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!leds.current) return;
+    leds.current.children.forEach((c, i) => {
+      const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      m.opacity = 0.35 + 0.65 * Math.abs(Math.sin(clock.elapsedTime * (1.4 + (i % 5) * 0.6) + i));
+    });
+  });
+  return (
+    <group position={position}>
+      <mesh position={[0, 1.05, 0]}>
+        <boxGeometry args={[0.9, 2.1, 0.8]} />
+        <meshStandardMaterial color="#1d242e" roughness={0.6} metalness={0.4} />
+      </mesh>
+      <group ref={leds}>
+        {Array.from({ length: 18 }).map((_, i) => (
+          <mesh key={i} position={[-0.3 + (i % 3) * 0.3, 0.35 + Math.floor(i / 3) * 0.26, 0.41]}>
+            <planeGeometry args={[0.07, 0.035]} />
+            <meshBasicMaterial color={i % 4 === 0 ? '#5eead4' : '#7dd3fc'} transparent opacity={0.6} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+/** Sala fechada de backtest & treinamento, atrás do vidro do pregão. */
+function ResearchLabRoom() {
+  const GLASS_Z = 14.2;
+  const BACK = 20.8;
+  return (
+    <group>
+      {/* piso de vinil claro da sala */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, (GLASS_Z + BACK) / 2]}>
+        <planeGeometry args={[30, BACK - GLASS_Z]} />
+        <meshStandardMaterial color="#d7dde5" roughness={0.85} />
+      </mesh>
+      {/* divisória de vidro com montantes e vão da porta */}
+      {[-1, 1].map((sgn) => (
+        <group key={sgn}>
+          <mesh position={[sgn * 9.25, 1.65, GLASS_Z]}>
+            <boxGeometry args={[11.5, 3.3, 0.06]} />
+            <meshPhysicalMaterial color="#dbeafe" transparent opacity={0.16} roughness={0.04} transmission={0.85} />
+          </mesh>
+          <mesh position={[sgn * 3.5, 1.65, GLASS_Z]}>
+            <boxGeometry args={[0.1, 3.3, 0.12]} />
+            <meshStandardMaterial color="#9aa3ae" metalness={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={[sgn * 15, 1.65, GLASS_Z]}>
+            <boxGeometry args={[0.1, 3.3, 0.12]} />
+            <meshStandardMaterial color="#9aa3ae" metalness={0.8} roughness={0.3} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 3.36, GLASS_Z]}>
+        <boxGeometry args={[30, 0.14, 0.16]} />
+        <meshStandardMaterial color="#aab2bc" metalness={0.75} roughness={0.32} />
+      </mesh>
+
+      {/* letreiro da sala */}
+      <mesh position={[0, 3.9, GLASS_Z]}>
+        <boxGeometry args={[11, 0.7, 0.1]} />
+        <meshStandardMaterial color="#1b2430" roughness={0.5} metalness={0.3} />
+      </mesh>
+      <Text position={[0, 3.9, GLASS_Z - 0.07]} rotation={[0, Math.PI, 0]} fontSize={0.3} letterSpacing={0.26} color="#67e8f9" anchorX="center">
+        RESEARCH LAB
+      </Text>
+      <Text position={[0, 3.9, GLASS_Z + 0.07]} fontSize={0.3} letterSpacing={0.26} color="#67e8f9" anchorX="center">
+        RESEARCH LAB · BACKTEST &amp; TRAINING
+      </Text>
+
+      {/* parede de telas da sala (fundo) */}
+      <mesh position={[0, 2.6, BACK + 0.1]}>
+        <boxGeometry args={[22, 5.2, 0.1]} />
+        <meshStandardMaterial color="#2b3440" roughness={0.8} />
+      </mesh>
+      {[
+        { kind: 'EQUITY', x: -6.4 },
+        { kind: 'BACKTEST', x: -2.1 },
+        { kind: 'OPTIMIZER', x: 2.1 },
+        { kind: 'QUANT', x: 6.4 },
+      ].map((sc) => (
+        <WallScreen key={sc.kind} position={[sc.x, 3.1, BACK]} size={[3.9, 2.3]} kind={sc.kind} rotY={Math.PI} />
+      ))}
+      <Text position={[0, 4.75, BACK - 0.02]} rotation={[0, Math.PI, 0]} fontSize={0.26} letterSpacing={0.3} color="#8c98a6" anchorX="center">
+        WALK-FORWARD · MULTI-TIMEFRAME · HIT RATE
+      </Text>
+
+      {/* quadro branco com as ideias */}
+      <group position={[-13.4, 2.4, 17.4]} rotation={[0, Math.PI / 2, 0]}>
+        <mesh>
+          <planeGeometry args={[4.4, 2.2]} />
+          <meshStandardMaterial color="#fafbfc" roughness={0.55} />
+        </mesh>
+        {Array.from({ length: 11 }).map((_, i) => (
+          <mesh key={i} position={[-1.5 + (i % 3) * 1.45, 0.72 - Math.floor(i / 3) * 0.5, 0.01]}>
+            <planeGeometry args={[0.9 + ((i * 7) % 5) * 0.08, 0.05]} />
+            <meshBasicMaterial color={i % 3 === 0 ? '#0ea5e9' : i % 4 === 0 ? '#16a34a' : '#64748b'} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+
+      <ServerRack position={[12.6, 0, 18.6]} />
+      <ServerRack position={[13.8, 0, 18.6]} />
+      <Plant position={[-12.6, 0, 15.4]} />
+      <Plant position={[12.4, 0, 15.4]} />
+
+      <Text position={[0, 0.03, 15.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} letterSpacing={0.3} color="#9aa5b2" anchorX="center">
+        RESEARCH LAB — NO LIVE ORDERS
+      </Text>
     </group>
   );
 }
@@ -216,46 +334,81 @@ export function Office() {
         <CityWindow key={`r${z}`} x={FLOOR_W / 2 - 0.08} z={z} rotY={-Math.PI / 2} />
       ))}
 
-      {/* ─────────────────── MARKET INTELLIGENCE video wall ─────────────────── */}
-      <group position={[0, 0, BACK_Z + 0.12]}>
-        <mesh position={[0, 3.3, -0.02]}>
-          <boxGeometry args={[26, 5.4, 0.12]} />
-          <meshStandardMaterial color="#222c39" roughness={0.55} metalness={0.3} />
+      {/* ────────── parede de monitores grandes (sem "telão" único) ────────── */}
+      <group position={[0, 0, BACK_Z + 0.1]}>
+        {/* painel ripado de fundo + estrutura de suporte */}
+        <mesh position={[0, 3.4, -0.04]}>
+          <boxGeometry args={[27, 5.6, 0.1]} />
+          <meshStandardMaterial color="#2b3440" roughness={0.75} metalness={0.15} />
         </mesh>
-        <Text position={[0, 5.72, 0.2]} fontSize={0.42} letterSpacing={0.36} color="#16283a" anchorX="center" font={undefined}>
+        {Array.from({ length: 34 }).map((_, i) => (
+          <mesh key={`slat${i}`} position={[-13 + i * 0.79, 3.4, 0.015]}>
+            <boxGeometry args={[0.1, 5.5, 0.05]} />
+            <meshStandardMaterial color="#394657" roughness={0.8} />
+          </mesh>
+        ))}
+        {/* trilhos horizontais de fixação */}
+        {[1.42, 4.62].map((y) => (
+          <mesh key={`rail${y}`} position={[0, y, 0.07]}>
+            <boxGeometry args={[26.4, 0.1, 0.12]} />
+            <meshStandardMaterial color="#aeb6c0" metalness={0.75} roughness={0.32} />
+          </mesh>
+        ))}
+
+        {/* letreiro */}
+        <mesh position={[0, 6.0, 0.08]}>
+          <boxGeometry args={[9.4, 0.62, 0.1]} />
+          <meshStandardMaterial color="#e8ebef" roughness={0.5} metalness={0.2} />
+        </mesh>
+        <Text position={[0, 6.0, 0.16]} fontSize={0.3} letterSpacing={0.3} color="#16283a" anchorX="center">
           MARKET INTELLIGENCE
         </Text>
-        <Text position={[0, 0.62, 0.2]} fontSize={0.2} letterSpacing={0.3} color="#8c98a6" anchorX="center">
-          AXE CAPITAL · AUTONOMOUS FX DESK · SIMULATION ENVIRONMENT
-        </Text>
 
-        {/* left cluster */}
+        {/* grade de monitores grandes: 2 fileiras laterais + par central */}
         {wallScreens.left.map((s, i) => (
           <WallScreen
             key={`L${i}`}
-            position={[-8.6 + (i % 2) * 3.3, 4.35 - Math.floor(i / 2) * 2.0, 0.12]}
-            size={[3.1, 1.85]}
+            position={[-10.15 + (i % 2) * 3.62, 4.62 - Math.floor(i / 2) * 2.24, 0.14]}
+            size={[3.42, 2.0]}
+            rotY={0.12 - (i % 2) * 0.05}
             kind={s.kind}
             symbol={(s as any).symbol}
           />
         ))}
-        {/* right cluster */}
         {wallScreens.right.map((s, i) => (
           <WallScreen
             key={`R${i}`}
-            position={[5.3 + (i % 2) * 3.3, 4.35 - Math.floor(i / 2) * 2.0, 0.12]}
-            size={[3.1, 1.85]}
+            position={[6.53 + (i % 2) * 3.62, 4.62 - Math.floor(i / 2) * 2.24, 0.14]}
+            size={[3.42, 2.0]}
+            rotY={-0.07 - (i % 2) * 0.05}
             kind={s.kind}
             symbol={(s as any).symbol}
           />
         ))}
 
-        {/* centre: real TradingView advanced chart */}
+        {/* par central: o maior do conjunto, com o TradingView real */}
         {tvEnabled ? (
-          <TradingViewScreen position={[-1.65, 3.4, 0.16]} symbol={focusSymbol} width={1180} height={760} scale={0.0049} />
+          <>
+            {/* moldura física do monitor central */}
+            <mesh position={[0, 4.22, 0.1]}>
+              <boxGeometry args={[5.42, 3.4, 0.1]} />
+              <meshStandardMaterial color="#161c25" roughness={0.4} metalness={0.45} />
+            </mesh>
+            <TradingViewScreen position={[0, 4.22, 0.19]} symbol={focusSymbol} width={1180} height={720} scale={0.0044} />
+          </>
         ) : (
-          <WallScreen position={[-1.65, 3.4, 0.12]} size={[5.8, 3.7]} kind="CHART" symbol={focusSymbol} />
+          <WallScreen position={[0, 4.22, 0.14]} size={[5.2, 3.18]} kind="CHART" symbol={focusSymbol} />
         )}
+        <WallScreen position={[0, 1.94, 0.14]} size={[5.2, 1.34]} kind="WATCHLIST" />
+
+        {/* faixa de ticker sob os monitores */}
+        <mesh position={[0, 0.78, 0.14]}>
+          <boxGeometry args={[26.4, 0.46, 0.08]} />
+          <meshStandardMaterial color="#111823" roughness={0.5} />
+        </mesh>
+        <Text position={[0, 0.78, 0.2]} fontSize={0.19} letterSpacing={0.22} color="#5fd3b2" anchorX="center">
+          AXE CAPITAL · AUTONOMOUS FX DESK · RESEARCH LAB ONLINE
+        </Text>
       </group>
 
       {/* sector signage */}
@@ -309,11 +462,7 @@ export function Office() {
       <WallClock position={[-22.6, 4.4, -6]} rotation={[0, 0, Math.PI / 2]} />
       <WallClock position={[22.6, 4.4, -6]} rotation={[0, 0, -Math.PI / 2]} />
 
-      {/* glass partition behind execution island */}
-      <mesh position={[0, 1.6, 14]}>
-        <boxGeometry args={[30, 3.2, 0.06]} />
-        <meshPhysicalMaterial color="#cfe6f7" transparent opacity={0.14} roughness={0.05} metalness={0} transmission={0.75} />
-      </mesh>
+      <ResearchLabRoom />
 
       {/* printer / credenza */}
       <group position={[18.5, 0, 1]}>

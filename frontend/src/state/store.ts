@@ -38,6 +38,43 @@ const writeLS = (key: string, value: string) => {
   }
 };
 
+export interface LabChampion {
+  symbol: string;
+  name: string;
+  id: string;
+  winRate: number;
+  trades: number;
+  expectancyR: number;
+  profitFactor: number;
+  maxDdR: number;
+  slAtr: number;
+  tpAtr: number;
+  htf: string | null;
+  author: string;
+  validation: { trades: number; winRate: number; expectancyR: number };
+  live: { trades: number; wins: number; pnl: number; rSum: number };
+}
+
+export interface LabSummary {
+  experiments: number;
+  promotions: number;
+  generation: number;
+  champions: LabChampion[];
+  leaderboard: {
+    symbol: string;
+    name: string;
+    winRate: number;
+    trades: number;
+    expectancyR: number;
+    profitFactor: number;
+    score: number;
+    validationWinRate: number;
+    validationTrades: number;
+    author: string;
+  }[];
+  findings: { at: number; author: string; symbol: string; text: string; tone: string; promoted?: boolean }[];
+}
+
 export interface FocusTarget {
   deskId: string;
   agentId: string;
@@ -69,6 +106,7 @@ interface State {
   simNow: number;
   mt5Connected: boolean;
   ai: AIConfig | null;
+  lab: LabSummary | null;
   watchlist: string[];
   focus: FocusTarget | null;
   autoCamera: boolean;
@@ -124,6 +162,7 @@ export const useStore = create<State>((set, get) => ({
   simNow: Date.now(),
   mt5Connected: false,
   ai: null,
+  lab: null,
   watchlist: [],
   focus: null,
   autoCamera: true,
@@ -183,6 +222,7 @@ export const useStore = create<State>((set, get) => ({
       simNow: s.simNow,
       mt5Connected: s.mt5Connected,
       ai: s.ai,
+      lab: s.lab ?? null,
       watchlist: s.watchlist,
     }),
 
@@ -220,6 +260,7 @@ export const useStore = create<State>((set, get) => ({
       mt5Connected: f.mt5Connected,
       config: f.config,
       ai: f.ai ? ({ ...(get().ai ?? {}), ...f.ai } as any) : get().ai,
+      lab: f.lab ?? get().lab,
       agents: dirty ? patched : prev,
     });
   },

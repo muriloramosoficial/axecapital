@@ -1,6 +1,6 @@
 import type { AgentRole } from '../core/types.js';
 
-export type Sector = 'MARKET_INTELLIGENCE' | 'RESEARCH' | 'RISK' | 'EXECUTION' | 'NEWSROOM';
+export type Sector = 'MARKET_INTELLIGENCE' | 'RESEARCH' | 'RISK' | 'EXECUTION' | 'NEWSROOM' | 'LAB';
 
 export interface Desk {
   id: string;
@@ -60,6 +60,12 @@ export const DESKS: Desk[] = [
   d('trader-1', 'Execution Station Alpha', 'EXECUTION', 0, 6.4, 0, 6, ['TRADER'], 6.4, 2.2),
   d('trader-2', 'Execution Station Beta', 'EXECUTION', -7.4, 9.8, 0, 4, ['TRADER'], 4.2, 1.9),
   d('trader-3', 'Execution Station Gamma', 'EXECUTION', 7.4, 9.8, 0, 4, ['TRADER'], 4.2, 1.9),
+
+  // ── Research Lab: sala fechada atrás do vidro (backtest & treinamento) ──
+  d('lab-1', 'Backtest Bench 01', 'LAB', -7.2, 17.4, PI, 4, ['BACKTEST_ANALYST'], 3.6, 1.8),
+  d('lab-2', 'Backtest Bench 02', 'LAB', -2.4, 17.4, PI, 4, ['BACKTEST_ANALYST'], 3.6, 1.8),
+  d('lab-3', 'Strategy Workbench', 'LAB', 2.4, 17.4, PI, 4, ['STRATEGY_DEVELOPER'], 3.6, 1.8),
+  d('lab-4', 'Training Rig', 'LAB', 7.2, 17.4, PI, 4, ['STRATEGY_DEVELOPER', 'BACKTEST_ANALYST'], 3.6, 1.8),
 ];
 
 export const deskById = (id: string) => DESKS.find((x) => x.id === id);
@@ -81,4 +87,6 @@ export const ROLE_META: Record<AgentRole, { label: string; emoji: string; accent
   PORTFOLIO_MANAGER: { label: 'Portfolio Manager', emoji: '📊', accent: '#fbbf24', blurb: 'Sizes the position and balances the book.' },
   TRADER: { label: 'Trader / Execution', emoji: '🤖', accent: '#4ade80', blurb: 'Works the order into the market via MetaTrader 5.' },
   NEWS_ANALYST: { label: 'News Analyst', emoji: '📰', accent: '#fb923c', blurb: 'Tracks CPI, NFP, FOMC and breaking headlines.' },
+  BACKTEST_ANALYST: { label: 'Backtest Analyst', emoji: '🧪', accent: '#67e8f9', blurb: 'Não opera: testa setups no histórico e mede acerto, expectância e drawdown.' },
+  STRATEGY_DEVELOPER: { label: 'Strategy Developer', emoji: '🧬', accent: '#c084fc', blurb: 'Não opera: combina indicadores e timeframes até achar um setup lucrativo.' },
 };

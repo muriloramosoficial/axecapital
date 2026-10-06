@@ -18,6 +18,7 @@ import { MT5Broker } from '../broker/MT5Broker.js';
 import type { TradingBroker } from '../broker/interfaces.js';
 import { ai } from '../ai/provider.js';
 import { atr, MomentumBreakoutStrategy, macroScore, quantScore, technicalScore } from './strategy-engine.js';
+import { lab } from './research-lab.js';
 import { evaluateRisk } from './risk-engine.js';
 import { actualFor, buildCalendar, makeBreakingNews } from './news-engine.js';
 import { loadMemory, loadState, saveMemory, saveState } from '../core/persistence.js';
@@ -66,7 +67,10 @@ export class SimulationEngine {
   private stageQueue: { opId: string; at: number; fn: () => void }[] = [];
   private dayStartEquity = 100_000;
   private positionTrader = new Map<string, string>();
-  private setupMemory = new Map<string, { brainKeyRole: AgentRole; name: string; symbol?: string; features: SetupFeatures; opNumber: number }>();
+  private setupMemory = new Map<
+    string,
+    { brainKeyRole: AgentRole; name: string; symbol?: string; features: SetupFeatures; opNumber: number; labSetupId?: string }
+  >();
   private lastMonitor = 0;
 
   get broker(): TradingBroker {
@@ -182,6 +186,10 @@ export class SimulationEngine {
     agents.hire({ role: 'RISK_MANAGER', maxRiskPct: 0.5 });
     agents.hire({ role: 'PORTFOLIO_MANAGER' });
     agents.hire({ role: 'TRADER' });
+    // sala de pesquisa: não operam, só testam e treinam setups
+    agents.hire({ role: 'BACKTEST_ANALYST' });
+    agents.hire({ role: 'BACKTEST_ANALYST' });
+    agents.hire({ role: 'STRATEGY_DEVELOPER' });
   }
 
   // ──────────────────────────────────────────────────────────── main loop ──
@@ -197,6 +205,7 @@ export class SimulationEngine {
       this.maybeRegimeShift();
     }
     this.runStageQueue();
+    if (dt > 0) this.maybeResearch();
     this.maybeAmbient();
   }
 
@@ -350,7 +359,26 @@ export class SimulationEngine {
     this.say(agent, `Pulling ${op.symbol} structure — checking ${op.side === 'BUY' ? 'bullish' : 'bearish'} continuation.`, 'info');
 
     this.schedule(opId, 2200, () => {
-      const score = technicalScore(this.inputs(op));
+      let score = technicalScore(this.inputs(op));
+      // ── confirmação do setup campeão vindo da sala de backtest ──────────
+      const champ = lab.confirm(op.symbol, op.side, this.market.getCandles(op.symbol, 300));
+      if (champ && champ.delta !== 0) {
+        score = Math.max(1, Math.min(99, score + champ.delta));
+        op.setup = {
+          name: champ.setup,
+          id: champ.setupId,
+          aligned: champ.aligned,
+          delta: champ.delta,
+          winRate: champ.winRate,
+        };
+        this.say(
+          agent,
+          champ.aligned
+            ? `Setup ${champ.setup} confirma o lado (${(champ.winRate * 100).toFixed(0)}% no backtest) — somo ${champ.delta} pontos.`
+            : `Setup ${champ.setup} está contra esse lado agora — tiro ${Math.abs(champ.delta)} pontos.`,
+          champ.aligned ? 'good' : 'warn',
+        );
+      }
       op.scores.technical = score;
       agent.stats.analyses++;
       agents.setState(agent.id, score >= 60 ? 'SUCCESS' : 'WAITING', `Technical ${score}/100`, 800);
@@ -578,6 +606,7 @@ export class SimulationEngine {
           symbol: ownerForMemory.symbol,
           features: this.features(op),
           opNumber: op.number,
+          labSetupId: op.setup?.id,
         });
       }
       const owner = op.ownerAgentId ? agents.get(op.ownerAgentId) : undefined;
@@ -667,6 +696,7 @@ export class SimulationEngine {
       if (mem) {
         const risk = Math.abs((p.entry ?? trade.entry) - (trade.stopLoss ?? trade.entry)) || 1e-9;
         const moved = (trade.exit - trade.entry) * (trade.side === 'BUY' ? 1 : -1);
+        lab.recordLive(trade.symbol, mem.labSetupId, moved / risk, trade.pnl, this.simNow);
         const brain = brains.for(mem.brainKeyRole, mem.name, mem.symbol);
         const lesson = brain.record({
           id: trade.id,
@@ -789,6 +819,41 @@ export class SimulationEngine {
   }
 
   // ──────────────────────────────────────────────────────────── ambience ──
+  private lastResearch = 0;
+
+  /**
+   * A sala de pesquisa trabalha em paralelo ao pregão: a cada poucos segundos
+   * um agente de backtest/estratégia roda um experimento sobre o histórico de
+   * um dos ativos da watchlist e conta o resultado para a mesa.
+   */
+  private maybeResearch() {
+    const now = Date.now();
+    if (now - this.lastResearch < 5200) return;
+    this.lastResearch = now;
+    const crew = [...agents.byRole('BACKTEST_ANALYST'), ...agents.byRole('STRATEGY_DEVELOPER')];
+    if (!crew.length) return;
+    const agent = crew[Math.floor(Math.random() * crew.length)];
+    const symbol = this.watchlist[Math.floor(Math.random() * this.watchlist.length)];
+    if (!symbol) return;
+    const candles = this.market.getCandles(symbol, 1200);
+    if (candles.length < 140) return;
+
+    agents.setState(agent.id, 'ANALYZING', `Backtest ${symbol}`, 2600);
+    agents.setActivity(agent.id, Math.random() < 0.75 ? 'TYPING' : 'WRITING');
+    const finding = lab.runExperiment(symbol, candles, agent.name, this.simNow);
+    if (!finding) return;
+
+    bus.emit('LAB_EXPERIMENT', { agentId: agent.id, agentName: agent.name, ...finding, summary: lab.summary() });
+    if (finding.promoted) {
+      agents.setState(agent.id, 'SUCCESS', `Setup aprovado · ${symbol}`, 2600);
+      this.say(agent, finding.text, 'good');
+      bus.emit('SETUP_PROMOTED', { agentId: agent.id, symbol, text: finding.text });
+      bus.emit('CAMERA_FOCUS', { deskId: agent.deskId, agentId: agent.id, label: 'Novo setup campeão' });
+    } else if (Math.random() < 0.45) {
+      this.say(agent, finding.text, finding.tone === 'warn' ? 'warn' : 'info');
+    }
+  }
+
   private maybeAmbient() {
     if (Date.now() - this.lastAmbient < 4500) return;
     this.lastAmbient = Date.now();
@@ -1055,6 +1120,7 @@ export class SimulationEngine {
       prices: this.prices(),
       mt5Connected: this.mt5Connected,
       ai: { ...ai.config, apiKey: ai.config.apiKey ? '***' : '' },
+      lab: lab.summary(),
     };
   }
 }

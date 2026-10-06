@@ -80,6 +80,8 @@ const ROLE_PROMPT: Record<AgentRole, string> = {
   PORTFOLIO_MANAGER: 'You are a portfolio manager sizing positions across the book.',
   TRADER: 'You are an execution trader working orders with minimal slippage.',
   NEWS_ANALYST: 'You monitor the economic calendar and breaking headlines.',
+  BACKTEST_ANALYST: 'You are a backtest analyst measuring hit rate, expectancy and drawdown of indicator setups.',
+  STRATEGY_DEVELOPER: 'You are a strategy developer combining indicators and timeframes to build a profitable setup.',
 };
 
 export class AIProviderClient {
