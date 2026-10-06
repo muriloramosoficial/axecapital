@@ -1,10 +1,12 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { AdaptiveDpr, ContactShadows, Line, OrbitControls, Preload, useProgress } from '@react-three/drei';
+import { ContactShadows, Line, OrbitControls, Preload, useProgress } from '@react-three/drei';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { CameraDirector, OVERVIEW } from './CameraDirector';
 import { Office } from './Office';
+import { LoungeAgents, LoungeRoom } from './Lounge';
+import { isMarketOpen } from '../lib/market-hours';
 import { Desk3D } from './Desk3D';
 import { updateScreens } from './screens';
 import { useStore } from '../state/store';
@@ -69,11 +71,24 @@ function Floor() {
   const desks = useStore((s) => s.desks);
   const agents = useStore((s) => s.agents);
   const select = useStore((s) => s.select);
+  const restMode = useStore((s) => s.restMode);
+  const simNow = useStore((s) => s.simNow);
+
+  // mercado do ativo fechado → o agente está na sala de descanso, não na mesa
+  const resting = agents.filter((a) => {
+    if (restMode === 'never') return false;
+    if (restMode === 'always') return !!a.symbol;
+    return !isMarketOpen(a.symbol, simNow || Date.now());
+  });
+  const restingIds = new Set(resting.map((a) => a.id));
+
   return (
     <>
-      {desks.map((desk) => (
-        <Desk3D key={desk.id} desk={desk} agent={agents.find((a) => a.deskId === desk.id)} onSelect={select} />
-      ))}
+      {desks.map((desk) => {
+        const agent = agents.find((a) => a.deskId === desk.id);
+        return <Desk3D key={desk.id} desk={desk} agent={agent && !restingIds.has(agent.id) ? agent : undefined} onSelect={select} />;
+      })}
+      <LoungeAgents agents={resting} />
     </>
   );
 }
@@ -150,7 +165,7 @@ export function Scene() {
         key={quality}
         shadows={false}
         dpr={p.dpr}
-        performance={{ min: 0.5 }}
+        performance={{ min: 1 }}
         gl={{ antialias: p.aa, powerPreference: 'high-performance', stencil: false }}
         camera={{ position: [0, 17.5, 27], fov: 38, near: 0.12, far: 220 }}
         onCreated={({ gl, scene }) => {
@@ -177,6 +192,7 @@ export function Scene() {
 
         <Suspense fallback={null}>
           <Office reflector={p.reflector} />
+          <LoungeRoom />
           <Floor />
           <SignalBeam />
           {/* sombra de contato assada uma única vez: aterra as mesas sem custo por frame */}
@@ -207,7 +223,6 @@ export function Scene() {
           maxPolarAngle={Math.PI / 2.08}
           target={[OVERVIEW.target.x, OVERVIEW.target.y, OVERVIEW.target.z]}
         />
-        <AdaptiveDpr pixelated />
         {p.bloom > 0 && (
           <EffectComposer multisampling={0}>
             <Bloom intensity={p.bloom} luminanceThreshold={0.74} luminanceSmoothing={0.26} mipmapBlur radius={0.55} />

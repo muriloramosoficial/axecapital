@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { connect, useStore, HUD_CATALOG, type HudKey, type Quality } from '../state/store';
+import { connect, useStore, HUD_CATALOG, type HudKey, type Quality, type RestMode } from '../state/store';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
 import { AdminGate } from './AdminLogin';
@@ -89,6 +89,8 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
   const uiScale = useStore((s) => s.uiScale);
   const quality = useStore((s) => s.quality);
   const setQuality = useStore((s) => s.setQuality);
+  const restMode = useStore((s) => s.restMode);
+  const setRestMode = useStore((s) => s.setRestMode);
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
   const [pwdMsg, setPwdMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const setUiScale = useStore((s) => s.setUiScale);
@@ -361,6 +363,32 @@ function Backoffice({ user, logout }: { user: string; logout: () => void }) {
                     onClick={() => setCameraMode(id)}
                     className={`rounded-lg px-3 py-2 text-[12px] transition ${
                       cameraMode === id ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-slate-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card
+              title="Sala de descanso"
+              hint="Quando o mercado do ativo está fechado (fim de semana, pausa diária), o agente sai da mesa e vai para o lounge — sofá, copa e sinuca."
+            >
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['auto', '🕒 Automático', 'segue o horário real do ativo'],
+                    ['always', '🛋 Forçar descanso', 'todo mundo no lounge (bom para conferir a sala)'],
+                    ['never', '💼 Sempre na mesa', 'ignora o horário de mercado'],
+                  ] as [RestMode, string, string][]
+                ).map(([id, label, hint]) => (
+                  <button
+                    key={id}
+                    title={hint}
+                    onClick={() => setRestMode(id)}
+                    className={`rounded-lg px-3 py-2 text-[12px] transition ${
+                      restMode === id ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-slate-100'
                     }`}
                   >
                     {label}

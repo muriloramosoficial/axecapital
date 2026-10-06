@@ -515,7 +515,9 @@ A cena foi endurecida contra os artefatos que apareciam na live:
   (piscavam nos cortes e custavam caro); viraram texto 3D em billboard;
 * **sombra de contato assada uma vez** e piso com reflexo mais barato.
 
-**Roteiro da live** (`CameraDirector`): abertura geral por trás do pregão → mesa de um
+**Roteiro da live** (`CameraDirector`): o plano-base é o **MASTER** — câmera alta, aberta e
+praticamente parada, pegando o escritório inteiro — e ele volta entre cada visita, então a
+maior parte do tempo a live mostra o ambiente todo. Entre os masters: mesa de um
 agente → telão central → mesa → travelling pelo corredor → mesa → parede de monitores →
 mesa → research lab → mesa, e repete, sempre escolhendo o agente mais "interessante"
 (posição aberta, execução, alerta, há mais tempo sem aparecer). Qualquer evento forte do
@@ -540,6 +542,46 @@ Troque em **/admin#acesso** logo no primeiro acesso. A senha é guardada com has
 em `data/admin.json` (fora do git), a sessão dura 12h e fica só naquele navegador. Dá
 para definir outras credenciais no primeiro boot com `AXE_ADMIN_USER` e
 `AXE_ADMIN_PASSWORD`. Esqueceu? Apague `data/admin.json` e reinicie o engine.
+
+## 9.11 Sala de descanso (mercado fechado)
+
+Agente não fica olhando gráfico parado. Quando o **mercado do ativo dele está
+fechado** (fim de semana no FX, pausa diária de índices/energia), ele sai da mesa e
+aparece no **lounge**, no canto direito do fundo, atrás do vidro: sofá em L de frente
+para a TV, mesa de centro, copa com bancada/pia/cafeteira/micro-ondas/geladeira, mesa de
+refeição e **mesa de sinuca** com luminária pendente. A mesa dele fica com a cadeira
+vazia e o roteiro de câmera ganhou um plano `LOUNGE`.
+
+* regra de horário: `frontend/src/lib/market-hours.ts` (FX/metais 24×5, abre domingo
+  21:00 UTC e fecha sexta 21:00 UTC; índices e petróleo param na janela diária; cripto
+  nunca fecha);
+* em **/admin#mesa** há o seletor **Sala de descanso**: *automático* (horário real),
+  *forçar descanso* (todo mundo no lounge — ótimo para conferir a sala) e *sempre na
+  mesa*.
+
+## 9.12 Anatomia e pose dos agentes
+
+Os bonecos estavam "dentro" das mesas e com as mãos no ar. Foi tudo remedido:
+
+* **altura do assento** — o quadril agora fica na altura do assento da cadeira (0,50 m),
+  os pés tocam o chão e a cabeça fica abaixo do nível dos monitores;
+* **cadeira** — o encosto ficava *entre* o corpo e a mesa (o grupo girava 180°); agora
+  fica atrás, e a cadeira ganhou braços;
+* **mãos no teclado** — o antebraço ficou na horizontal, na altura do tampo; teclado,
+  mouse, caneca e papéis são posicionados a partir da profundidade da mesa
+  (`kbZ = depth/2 − 0.42`), e o agente senta 0,39 m atrás do teclado;
+* **pernas** — coxa quase horizontal por baixo do tampo e canela descendo até o chão;
+  pose alternativa em pé (lounge/sinuca) com pernas retas;
+* **poses** — `desk` (digitando), `couch` (sentado relaxado) e `stand` (em pé).
+
+## 9.13 Piscada / z-fighting
+
+A tela "piscando" tinha causa real na cena, não só no streaming: várias superfícies
+estavam **coplanares** e a GPU alternava qual desenhar por cima. Foram afastadas as telas
+da parede de monitores (estavam exatamente na face da caixa), os tapetes e o piso da
+sala de pesquisa (5–8 mm acima do piso refletor), os textos no chão e a faixa de luz da
+borda das mesas. Também saiu o `AdaptiveDpr`/`regress`, que reduzia a resolução durante o
+movimento da câmera e aparecia como piscada de nitidez.
 
 ## 10. Modo transmissão (live 24h no YouTube)
 

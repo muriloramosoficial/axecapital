@@ -30,7 +30,9 @@ export const OVERVIEW = {
 const ROOM = { minX: -20.5, maxX: 20.5, minZ: -13.2, maxZ: 19, minY: 0.9, maxY: 5.6 };
 
 type ShotKind =
+  | 'MASTER'
   | 'ESTABLISH'
+  | 'LOUNGE'
   | 'CRANE'
   | 'PUSH_IN'
   | 'ORBIT'
@@ -108,8 +110,35 @@ function interest(agent: Agent | undefined, lastSeen: number) {
 }
 
 /** Roteiro base da live: a cada volta a câmera passa por tudo que importa. */
-type Beat = 'OPEN' | 'AGENT' | 'WALL' | 'BRAND' | 'GLIDE' | 'LAB';
-const RUNDOWN: Beat[] = ['OPEN', 'AGENT', 'BRAND', 'AGENT', 'GLIDE', 'AGENT', 'WALL', 'AGENT', 'LAB', 'AGENT'];
+type Beat = 'MASTER' | 'OPEN' | 'AGENT' | 'WALL' | 'BRAND' | 'GLIDE' | 'LAB' | 'LOUNGE';
+
+/**
+ * Roteiro da live. O MASTER (plano aberto, fixo, lá de cima, pegando o
+ * escritório inteiro) é o plano-base: ele volta entre cada visita, então a
+ * câmera passa a maior parte do tempo mostrando o ambiente todo.
+ */
+const RUNDOWN: Beat[] = [
+  'MASTER',
+  'AGENT',
+  'MASTER',
+  'BRAND',
+  'MASTER',
+  'AGENT',
+  'MASTER',
+  'GLIDE',
+  'MASTER',
+  'AGENT',
+  'MASTER',
+  'WALL',
+  'MASTER',
+  'LOUNGE',
+  'MASTER',
+  'AGENT',
+  'MASTER',
+  'LAB',
+  'MASTER',
+  'OPEN',
+];
 
 export function CameraDirector({ controls }: { controls: React.MutableRefObject<any> }) {
   const { camera } = useThree();
@@ -172,10 +201,10 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
         label: 'ORBIT',
         agentId: agent?.id,
         reason,
-        orbit: { center: head.clone(), radius: 3.6, from: base, to: base + dirSign * 0.9, height: 2.2 },
+        orbit: { center: head.clone(), radius: 3.8, from: base, to: base + dirSign * 0.55, height: 2.25 },
         start: { pos: camera.position.clone(), target: head.clone() },
         end: { pos: camera.position.clone(), target: head.clone() },
-        duration: 9000,
+        duration: 12000,
         startedAt: now,
       };
     }
@@ -188,7 +217,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
         reason,
         start: { pos: place(behind.clone().add(new THREE.Vector3(0.85, 0.45, 0))), target: head.clone() },
         end: { pos: place(behind.clone().add(new THREE.Vector3(0.5, 0.1, 0))), target: head.clone().setY(1.34) },
-        duration: 7500,
+        duration: 10500,
         startedAt: now,
       };
     }
@@ -200,7 +229,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
         reason,
         start: { pos: place(deskFront(desk, 3.2, 1.95)), target: head.clone() },
         end: { pos: place(deskFront(desk, 2.0, 1.72)), target: head.clone().setY(1.44) },
-        duration: 6500,
+        duration: 9500,
         startedAt: now,
       };
     }
@@ -209,9 +238,9 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
       label: 'PUSH IN',
       agentId: agent?.id,
       reason,
-      start: { pos: place(deskFront(desk, 7.4, 3.9)), target: head.clone() },
-      end: { pos: place(deskFront(desk, 3.1, 2.0)), target: head.clone() },
-      duration: 8500,
+      start: { pos: place(deskFront(desk, 6.2, 3.3)), target: head.clone() },
+      end: { pos: place(deskFront(desk, 3.4, 2.05)), target: head.clone() },
+      duration: 12000,
       startedAt: now,
     };
   };
@@ -242,6 +271,32 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
   const buildBeatShot = (b: Beat): Shot => {
     const now = performance.now();
     switch (b) {
+      case 'MASTER': {
+        // plano mestre: alto, aberto, praticamente parado — só uma deriva
+        // lentíssima de lado para a imagem não ficar "congelada".
+        const side = Math.random() > 0.5 ? 1 : -1;
+        return {
+          kind: 'MASTER',
+          label: 'TRADING FLOOR',
+          reason: 'visão geral do escritório',
+          exterior: true,
+          start: { pos: new THREE.Vector3(2.4 * side, 16.4, 26.5), target: new THREE.Vector3(0, 1.6, -1.5) },
+          end: { pos: new THREE.Vector3(-2.4 * side, 15.2, 25.2), target: new THREE.Vector3(0, 1.6, -2.4) },
+          duration: 26000,
+          startedAt: now,
+        };
+      }
+      case 'LOUNGE':
+        // sala de descanso, vista do pregão através do vidro
+        return {
+          kind: 'LOUNGE',
+          label: 'LOUNGE',
+          reason: 'agentes fora de turno',
+          start: { pos: new THREE.Vector3(10.4, 3.4, 12.4), target: new THREE.Vector3(18.5, 1.5, 16.4) },
+          end: { pos: new THREE.Vector3(13.4, 2.6, 14.4), target: new THREE.Vector3(19.4, 1.3, 17.4) },
+          duration: 13000,
+          startedAt: now,
+        };
       case 'OPEN': {
         // abertura: maquete vista de trás/acima do pregão, descendo devagar
         const side = Math.random() > 0.5 ? 1 : -1;
@@ -252,7 +307,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
           exterior: true,
           start: { pos: new THREE.Vector3(9 * side, 19.5, 31), target: new THREE.Vector3(0, 2.2, -2) },
           end: { pos: new THREE.Vector3(3 * side, 13.5, 24), target: new THREE.Vector3(0, 2.0, -5) },
-          duration: 13000,
+          duration: 17000,
           startedAt: now,
         };
       }
@@ -264,7 +319,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
           reason: 'telão central da Axe Capital',
           start: { pos: new THREE.Vector3(0.6, 2.0, 7.6), target: new THREE.Vector3(0, 3.4, -14.8) },
           end: { pos: new THREE.Vector3(-0.4, 3.4, 3.4), target: new THREE.Vector3(0, 4.3, -14.8) },
-          duration: 10000,
+          duration: 14000,
           startedAt: now,
         };
       case 'WALL': {
@@ -276,7 +331,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
           reason: 'parede de monitores',
           start: { pos: new THREE.Vector3(-10.5 * dir, 4.1, -5.2), target: new THREE.Vector3(-7 * dir, 3.7, -14.8) },
           end: { pos: new THREE.Vector3(10.5 * dir, 3.6, -4.2), target: new THREE.Vector3(7 * dir, 3.5, -14.8) },
-          duration: 12000,
+          duration: 16000,
           startedAt: now,
         };
       }
@@ -289,7 +344,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
           reason: 'corredor da mesa',
           start: { pos: new THREE.Vector3(13.5 * dir, 2.6, 11.5), target: new THREE.Vector3(3 * dir, 1.5, 1) },
           end: { pos: new THREE.Vector3(-2 * dir, 2.2, 4.5), target: new THREE.Vector3(-2 * dir, 1.4, -8) },
-          duration: 13000,
+          duration: 17000,
           startedAt: now,
         };
       }
@@ -301,7 +356,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
           reason: 'backtest e treinamento rodando',
           start: { pos: new THREE.Vector3(-6.5, 3.1, 9.6), target: new THREE.Vector3(-2, 2.6, 18) },
           end: { pos: new THREE.Vector3(4.5, 2.6, 12.0), target: new THREE.Vector3(1.5, 2.6, 20.4) },
-          duration: 10000,
+          duration: 14000,
           startedAt: now,
         };
       default:
@@ -312,11 +367,11 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
   const pickNext = (): Shot => {
     const { cameraMode } = useStore.getState();
     if (cameraMode === 'follow') {
-      return buildAgentShot() ?? buildBeatShot('OPEN');
+      return buildAgentShot() ?? buildBeatShot('MASTER');
     }
     const b = RUNDOWN[beat.current % RUNDOWN.length];
     beat.current += 1;
-    if (b === 'AGENT') return buildAgentShot() ?? buildBeatShot('GLIDE');
+    if (b === 'AGENT') return buildAgentShot() ?? buildBeatShot('MASTER');
     return buildBeatShot(b);
   };
 
@@ -339,7 +394,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
       const current = shot.current;
       const fresh = current ? performance.now() - current.startedAt : 9e9;
       // não corta em cima de um plano que acabou de começar (evita pisca-pisca)
-      if (desk && fresh > 2600) {
+      if (desk && fresh > 4500) {
         const sameDesk = current?.agentId && current.agentId === agent?.id;
         const kind: ShotKind = sameDesk ? 'ORBIT' : Math.random() > 0.45 ? 'PUSH_IN' : 'OVER_SHOULDER';
         cut(buildDeskShot(desk, agent, kind, focus.label ?? 'evento no pregão'));
@@ -375,15 +430,16 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
     // leve respiração de câmera na mão (amplitude menor nos planos fechados)
     noise.current += dt;
     const n = noise.current;
-    const amp = s.kind === 'CLOSE_UP' || s.kind === 'OVER_SHOULDER' ? 0.018 : 0.034;
+    const amp = s.kind === 'MASTER' ? 0.012 : s.kind === 'CLOSE_UP' || s.kind === 'OVER_SHOULDER' ? 0.012 : 0.022;
     pos.x += Math.sin(n * 0.63) * amp;
     pos.y += Math.sin(n * 0.47 + 1.3) * amp * 0.8;
     pos.z += Math.cos(n * 0.55 + 0.7) * amp * 0.9;
 
     // suavização independente de framerate (sem "teleporte" nem tranco em 144Hz)
-    const k = 1 - Math.exp(-7.5 * dt);
+    // quanto mais macio o k, mais "trilho de cinema" fica o movimento
+    const k = 1 - Math.exp(-(s.kind === 'MASTER' ? 2.2 : 3.4) * dt);
     camera.position.lerp(pos, k);
-    ctrl.target.lerp(target, Math.min(1, k * 1.15));
+    ctrl.target.lerp(target, Math.min(1, k * 1.1));
     ctrl.update();
 
     if (t >= 1) cut(pickNext());

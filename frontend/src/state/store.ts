@@ -23,6 +23,9 @@ const HUD_MODES: HudMode[] = ['full', 'broadcast', 'clean'];
 /** Painéis que o backoffice pode ligar/desligar individualmente. */
 export type Quality = 'alta' | 'media' | 'baixa';
 
+/** quando os agentes vão para a sala de descanso */
+export type RestMode = 'auto' | 'always' | 'never';
+
 export type HudKey =
   | 'topHud'
   | 'pipeline'
@@ -206,6 +209,7 @@ interface State {
   cameraCutAt: number;
   /** qualidade gráfica: pesa reflexos, bloom e resolução */
   quality: Quality;
+  restMode: RestMode;
   selectedAgentId: string | null;
   ambient: AmbientPing[];
   flash: { deskId: string; tone: string; at: number } | null;
@@ -218,6 +222,7 @@ interface State {
   setSpotlight: (v: { agentId: string; shot: string; reason: string } | null) => void;
   markCameraCut: () => void;
   setQuality: (v: Quality) => void;
+  setRestMode: (v: RestMode) => void;
   cycleHud: () => void;
   setUiScale: (v: number) => void;
   hudOn: boolean;
@@ -275,6 +280,9 @@ export const useStore = create<State>((set, get) => ({
   quality: readLS<Quality>('axe.quality', 'alta', (r) =>
     ['alta', 'media', 'baixa'].includes(r) ? (r as Quality) : null,
   ),
+  restMode: readLS<RestMode>('axe.rest.mode', 'auto', (r) =>
+    ['auto', 'always', 'never'].includes(r) ? (r as RestMode) : null,
+  ),
   hudMode: readLS<HudMode>('axe.hudMode', 'full', (r) => (HUD_MODES.includes(r as HudMode) ? (r as HudMode) : null)),
   hudOn: readLS<boolean>('axe.hud.on', true, (r) => (r === '0' ? false : r === '1' ? true : null)),
   hudPrefs: readHudPrefs(),
@@ -298,6 +306,10 @@ export const useStore = create<State>((set, get) => ({
   setQuality: (v) => {
     writeLS('axe.quality', v);
     set({ quality: v });
+  },
+  setRestMode: (v) => {
+    writeLS('axe.rest.mode', v);
+    set({ restMode: v });
   },
   setHudMode: (v) => {
     writeLS('axe.hudMode', v);
@@ -334,6 +346,7 @@ export const useStore = create<State>((set, get) => ({
       hudOn: localStorage.getItem('axe.hud.on') !== '0',
       uiScale: Number(localStorage.getItem('axe.uiScale') ?? '1') || 1,
       quality: (localStorage.getItem('axe.quality') as Quality) ?? 'alta',
+      restMode: (localStorage.getItem('axe.rest.mode') as RestMode) ?? 'auto',
     });
   },
   setUiScale: (v) => {
@@ -494,6 +507,7 @@ if (typeof window !== 'undefined') {
       e.key.startsWith('axe.hud') ||
       e.key === 'axe.uiScale' ||
       e.key === 'axe.quality' ||
+      e.key === 'axe.rest.mode' ||
       e.key.startsWith('axe.watermark')
     ) {
       useStore.getState().reloadHudFromStorage();

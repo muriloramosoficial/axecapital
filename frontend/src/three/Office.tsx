@@ -32,7 +32,7 @@ function WallScreen({
         <boxGeometry args={[size[0] + 0.07, size[1] + 0.07, 0.08]} />
         <meshStandardMaterial color="#161c25" roughness={0.38} metalness={0.45} />
       </mesh>
-      <mesh position={[0, 0, 0.04]}>
+      <mesh position={[0, 0, 0.055]}>
         <planeGeometry args={size} />
         <meshStandardMaterial map={tex} emissiveMap={tex} emissive="#ffffff" emissiveIntensity={0.85} toneMapped={false} />
       </mesh>
@@ -157,7 +157,7 @@ function ResearchLabRoom() {
   return (
     <group>
       {/* piso de vinil claro da sala */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, (GLASS_Z + BACK) / 2]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, (GLASS_Z + BACK) / 2]}>
         <planeGeometry args={[30, BACK - GLASS_Z]} />
         <meshStandardMaterial color="#d7dde5" roughness={0.85} />
       </mesh>
@@ -208,7 +208,7 @@ function ResearchLabRoom() {
       ].map((sc) => (
         <WallScreen key={sc.kind} position={[sc.x, 3.1, BACK]} size={[3.9, 2.3]} kind={sc.kind} rotY={Math.PI} />
       ))}
-      <Text position={[0, 4.75, BACK - 0.02]} rotation={[0, Math.PI, 0]} fontSize={0.26} letterSpacing={0.3} color="#8c98a6" anchorX="center">
+      <Text position={[0, 4.75, BACK - 0.09]} rotation={[0, Math.PI, 0]} fontSize={0.26} letterSpacing={0.3} color="#8c98a6" anchorX="center">
         WALK-FORWARD · MULTI-TIMEFRAME · HIT RATE
       </Text>
 
@@ -231,7 +231,7 @@ function ResearchLabRoom() {
       <Plant position={[-12.6, 0, 15.4]} />
       <Plant position={[12.4, 0, 15.4]} />
 
-      <Text position={[0, 0.03, 15.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} letterSpacing={0.3} color="#9aa5b2" anchorX="center">
+      <Text position={[0, 0.045, 15.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} letterSpacing={0.3} color="#9aa5b2" anchorX="center">
         RESEARCH LAB — NO LIVE ORDERS
       </Text>
     </group>
@@ -292,7 +292,7 @@ export function Office({ reflector = 512 }: { reflector?: number }) {
 
       {/* carpet strips to break up the floor */}
       {[-11, 11].map((x) => (
-        <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.005, 1]}>
+        <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.022, 1]}>
           <planeGeometry args={[9.5, 24]} />
           <meshStandardMaterial color="#8d99a8" roughness={1} />
         </mesh>
@@ -419,7 +419,7 @@ export function Office({ reflector = 512 }: { reflector?: number }) {
         { t: 'EXECUTION', x: 0, z: 11.6, rot: 0 },
       ].map((s) => (
         <group key={s.t}>
-          <Text position={[s.x, 0.03, s.z]} rotation={[-Math.PI / 2, 0, -s.rot]} fontSize={0.34} letterSpacing={0.34} color="#9aa5b2" anchorX="center">
+          <Text position={[s.x, 0.045, s.z]} rotation={[-Math.PI / 2, 0, -s.rot]} fontSize={0.34} letterSpacing={0.34} color="#9aa5b2" anchorX="center">
             {s.t}
           </Text>
           <Text position={[s.x, 2.9, s.z]} rotation={[0, s.rot, 0]} fontSize={0.22} letterSpacing={0.3} color="#5a6a7b" anchorX="center">
@@ -477,7 +477,7 @@ export function Office({ reflector = 512 }: { reflector?: number }) {
       </group>
 
       {/* floor branding */}
-      <Text position={[0, 0.02, 13.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.72} letterSpacing={0.5} color="#9fa9b5" anchorX="center">
+      <Text position={[0, 0.045, 13.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.72} letterSpacing={0.5} color="#9fa9b5" anchorX="center">
         AXE CAPITAL
       </Text>
     </group>

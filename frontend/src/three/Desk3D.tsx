@@ -112,17 +112,26 @@ function Monitor({
   );
 }
 
-function Chair({ occupied }: { occupied: boolean }) {
+function Chair({ occupied, z }: { occupied: boolean; z: number }) {
   return (
-    <group position={[0, 0, 0.95]} rotation={[0, occupied ? Math.PI : Math.PI + 0.5, 0]}>
+    <group position={[0, 0, z]} rotation={[0, occupied ? 0 : 0.42, 0]}>
+      {/* assento */}
       <mesh position={[0, 0.45, 0]} castShadow>
         <boxGeometry args={[0.52, 0.08, 0.5]} />
         <meshStandardMaterial color="#39414d" roughness={0.85} />
       </mesh>
-      <mesh position={[0, 0.76, 0.24]} rotation={[0.16, 0, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.6, 0.07]} />
+      {/* encosto: fica para trás (+z), nunca na frente do corpo */}
+      <mesh position={[0, 0.78, 0.26]} rotation={[-0.14, 0, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.62, 0.07]} />
         <meshStandardMaterial color="#424b58" roughness={0.85} />
       </mesh>
+      {/* braços da cadeira */}
+      {[-1, 1].map((s2) => (
+        <mesh key={s2} position={[s2 * 0.3, 0.6, 0.02]}>
+          <boxGeometry args={[0.05, 0.04, 0.34]} />
+          <meshStandardMaterial color="#2f3744" roughness={0.7} />
+        </mesh>
+      ))}
       <mesh position={[0, 0.22, 0]}>
         <cylinderGeometry args={[0.045, 0.045, 0.42, 10]} />
         <meshStandardMaterial color="#c2c8d0" metalness={0.85} roughness={0.28} />
@@ -159,7 +168,12 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
     }
   });
 
-    const plateLabel = agent ? firstName : desk.label;
+    // ergonomia da estação: teclado a ~0.42 m da borda, agente 0.39 m atrás dele
+  const kbZ = Math.max(0.3, desk.depth / 2 - 0.42);
+  const seatZ = kbZ + 0.39;
+  const chairZ = seatZ + 0.12;
+
+  const plateLabel = agent ? firstName : desk.label;
   const plateName = agent?.symbol ? `${plateLabel} · ${agent.symbol}` : plateLabel;
   const plateRaw = agent ? (agent.openSymbol ? agent.openPnl ?? 0 : agent.daily?.realized ?? 0) : 0;
   const plateValue = agent && (agent.openSymbol || plateRaw !== 0) ? `${agent.openSymbol ? '● ' : ''}${money(plateRaw)}` : '';
@@ -174,7 +188,7 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
         <meshStandardMaterial color="#d9cdb8" roughness={0.55} metalness={0.05} />
       </mesh>
       {/* desk edge light strip */}
-      <mesh position={[0, DESK_H - 0.04, desk.depth / 2 + 0.001]}>
+      <mesh position={[0, DESK_H - 0.04, desk.depth / 2 + 0.006]}>
         <planeGeometry args={[desk.width * 0.96, 0.024]} />
         <meshBasicMaterial ref={strip} color={color} transparent opacity={0.3} toneMapped={false} />
       </mesh>
@@ -195,15 +209,15 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
       ))}
 
       {/* keyboard + mouse + mug + phone + papers */}
-      <mesh position={[0, DESK_H + 0.035, 0.18]} rotation={[0, 0, 0]}>
+      <mesh position={[0, DESK_H + 0.037, kbZ]} rotation={[0, 0, 0]}>
         <boxGeometry args={[0.46, 0.016, 0.15]} />
         <meshStandardMaterial color="#2a2f37" roughness={0.55} />
       </mesh>
-      <mesh position={[0, DESK_H + 0.045, 0.18]}>
+      <mesh position={[0, DESK_H + 0.048, kbZ]}>
         <planeGeometry args={[0.44, 0.13]} />
         <meshBasicMaterial color="#8fb6cf" transparent opacity={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[0.34, DESK_H + 0.04, 0.2]}>
+      <mesh position={[0.36, DESK_H + 0.042, kbZ + 0.02]}>
         <sphereGeometry args={[0.035, 10, 8]} />
         <meshStandardMaterial color="#39404a" roughness={0.45} />
       </mesh>
@@ -215,16 +229,16 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
         <boxGeometry args={[0.18, 0.05, 0.22]} />
         <meshStandardMaterial color="#303742" roughness={0.6} />
       </mesh>
-      <mesh position={[-desk.width / 2 + 0.55, DESK_H + 0.032, 0.26]} rotation={[-Math.PI / 2, 0, 0.3]}>
+      <mesh position={[-desk.width / 2 + 0.55, DESK_H + 0.034, kbZ + 0.06]} rotation={[-Math.PI / 2, 0, 0.3]}>
         <planeGeometry args={[0.21, 0.29]} />
         <meshStandardMaterial color="#fbfcfd" roughness={0.95} />
       </mesh>
 
-      <Chair occupied={!!agent} />
+      <Chair occupied={!!agent} z={chairZ} />
       {/* rotação de 180°: o agente encara os monitores (que ficam em -Z local) */}
       {agent && (
         <group rotation={[0, Math.PI, 0]}>
-          <Agent3D agent={agent} seat={[0, 1.05, -0.78]} />
+          <Agent3D agent={agent} seat={[0, 0.74, -seatZ]} />
         </group>
       )}
 
@@ -232,7 +246,7 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
 
       {/* Plaquinha do agente — texto 3D (antes era um <Html>, que flutuava
           por cima da cena, piscava nos cortes de câmera e custava DOM). */}
-      <Billboard position={[0, DESK_H + 1.34, desk.depth / 2]}>
+      <Billboard position={[0, DESK_H + 1.5, desk.depth / 2 + 0.1]}>
         <mesh>
           <planeGeometry args={[plateW, 0.2]} />
           <meshBasicMaterial color="#0d141d" transparent opacity={0.82} depthWrite={false} toneMapped={false} />

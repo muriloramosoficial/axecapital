@@ -27,7 +27,21 @@ function Skin({ color }: { color: string }) {
   return <meshPhysicalMaterial color={color} roughness={0.52} clearcoat={0.22} clearcoatRoughness={0.6} sheen={0.3} sheenColor="#ffd9c2" />;
 }
 
-export function Agent3D({ agent, seat }: { agent: Agent; seat: [number, number, number] }) {
+export type AgentPose = 'desk' | 'couch' | 'stand';
+
+export function Agent3D({
+  agent,
+  seat,
+  pose = 'desk',
+  facing = 0,
+}: {
+  agent: Agent;
+  seat: [number, number, number];
+  /** 'desk' = sentado digitando · 'couch' = sentado relaxado · 'stand' = em pé */
+  pose?: AgentPose;
+  /** giro do corpo em torno de Y (rad) */
+  facing?: number;
+}) {
   const root = useRef<THREE.Group>(null);
   const torso = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
@@ -72,7 +86,18 @@ export function Agent3D({ agent, seat }: { agent: Agent; seat: [number, number, 
     const typing = act === 'TYPING' || agent.state === 'EXECUTING' || agent.state === 'SCANNING';
 
     if (torso.current) {
-      const lean = typing ? 0.17 : act === 'WRITING' ? 0.25 : act === 'STRETCH' ? -0.12 : 0.06;
+      const lean =
+        pose === 'stand'
+          ? Math.sin(t * 0.5) * 0.015
+          : pose === 'couch'
+            ? -0.16
+            : typing
+              ? 0.14
+              : act === 'WRITING'
+                ? 0.22
+                : act === 'STRETCH'
+                  ? -0.12
+                  : 0.05;
       const breathe = Math.sin(t * 1.5) * 0.013;
       torso.current.rotation.x = THREE.MathUtils.lerp(torso.current.rotation.x, lean + breathe, 0.07);
       torso.current.rotation.z = THREE.MathUtils.lerp(torso.current.rotation.z, Math.sin(t * 0.6) * 0.02, 0.05);
@@ -116,11 +141,23 @@ export function Agent3D({ agent, seat }: { agent: Agent; seat: [number, number, 
       } else if (act === 'STRETCH') {
         set(armR.current, foreR.current, -2.5, -0.4, 0.07);
         set(armL.current, foreL.current, -2.5, -0.4, 0.07);
+      } else if (pose === 'stand') {
+        // em pé: braços caídos, leve balanço
+        const sway = Math.sin(t * 1.1) * 0.05;
+        set(armR.current, foreR.current, -0.06 + sway, -0.18, 0.1);
+        set(armL.current, foreL.current, -0.06 - sway, -0.18, 0.1);
+      } else if (pose === 'couch') {
+        // no sofá: braço apoiado, antebraço relaxado sobre a perna
+        const sway = Math.sin(t * 0.8) * 0.04;
+        set(armR.current, foreR.current, -0.22 + sway, -0.42, 0.08);
+        set(armL.current, foreL.current, -0.26 - sway, -0.38, 0.08);
       } else {
-        // mãos no teclado: ombro pouco aberto, cotovelo dobrado
-        const wiggle = typing ? Math.sin(t * 12) * 0.07 : Math.sin(t * 1.5) * 0.015;
-        set(armR.current, foreR.current, -0.42 + wiggle * 0.3, -0.95 + wiggle, 0.22);
-        set(armL.current, foreL.current, -0.42 - wiggle * 0.3, -0.95 - wiggle, 0.22);
+        // mãos no teclado: braço cai reto do ombro e o antebraço fica na
+        // horizontal, na altura do tampo (0.74) — era aqui que as mãos
+        // flutuavam acima da mesa.
+        const wiggle = typing ? Math.sin(t * 12) * 0.05 : Math.sin(t * 1.5) * 0.012;
+        set(armR.current, foreR.current, -0.1 + wiggle * 0.25, -0.12 + wiggle * 0.5, 0.22);
+        set(armL.current, foreL.current, -0.1 - wiggle * 0.25, -0.12 - wiggle * 0.5, 0.22);
       }
     }
 
@@ -138,7 +175,7 @@ export function Agent3D({ agent, seat }: { agent: Agent; seat: [number, number, 
   const sh = look.height;
 
   return (
-    <group ref={root} position={seat} scale={[1, sh, 1]}>
+    <group ref={root} position={seat} rotation={[0, facing, 0]} scale={[1, sh, 1]}>
       {/* halo de estado no chão */}
       <mesh ref={halo} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.56, 0]}>
         <ringGeometry args={[0.44, 0.58, 44]} />
@@ -403,23 +440,48 @@ export function Agent3D({ agent, seat }: { agent: Agent; seat: [number, number, 
         ))}
       </group>
 
-      {/* pernas sob a mesa */}
-      <mesh position={[0, -0.4, 0.2]} rotation={[-1.3, 0, 0]}>
-        <capsuleGeometry args={[0.1 * build, 0.34, 5, 12]} />
-        <meshStandardMaterial color="#262d38" roughness={0.92} />
-      </mesh>
-      {[-1, 1].map((s) => (
-        <group key={s}>
-          <mesh position={[s * 0.1, -0.52, 0.34]} rotation={[-0.3, 0, 0]}>
-            <capsuleGeometry args={[0.062, 0.26, 5, 10]} />
-            <meshStandardMaterial color="#262d38" roughness={0.92} />
-          </mesh>
-          <mesh position={[s * 0.1, -0.66, 0.46]} rotation={[-0.12, 0, 0]}>
-            <boxGeometry args={[0.115, 0.07, 0.25]} />
-            <meshStandardMaterial color="#12161d" roughness={0.45} metalness={0.15} />
-          </mesh>
-        </group>
-      ))}
+      {/* pernas — sentado (coxa para frente + canela para baixo) ou em pé */}
+      {pose === 'stand' ? (
+        [-1, 1].map((s2) => (
+          <group key={s2}>
+            <mesh position={[s2 * 0.1, -0.33, 0.01]}>
+              <capsuleGeometry args={[0.082 * build, 0.3, 5, 12]} />
+              <meshStandardMaterial color="#262d38" roughness={0.92} />
+            </mesh>
+            <mesh position={[s2 * 0.1, -0.62, 0.015]}>
+              <capsuleGeometry args={[0.068, 0.26, 5, 10]} />
+              <meshStandardMaterial color="#262d38" roughness={0.92} />
+            </mesh>
+            <mesh position={[s2 * 0.1, -0.78, 0.07]}>
+              <boxGeometry args={[0.115, 0.07, 0.26]} />
+              <meshStandardMaterial color="#12161d" roughness={0.45} metalness={0.15} />
+            </mesh>
+          </group>
+        ))
+      ) : (
+        <>
+          {/* coxas quase horizontais, saindo do quadril por baixo do tampo */}
+          {[-1, 1].map((s2) => (
+            <mesh key={`th${s2}`} position={[s2 * 0.1, -0.3, 0.2]} rotation={[-Math.PI / 2 + 0.16, 0, 0]}>
+              <capsuleGeometry args={[0.085 * build, 0.3, 5, 12]} />
+              <meshStandardMaterial color="#262d38" roughness={0.92} />
+            </mesh>
+          ))}
+          {[-1, 1].map((s2) => (
+            <group key={`lg${s2}`}>
+              {/* canela descendo até o chão */}
+              <mesh position={[s2 * 0.1, -0.52, 0.36]} rotation={[0.1, 0, 0]}>
+                <capsuleGeometry args={[0.062, 0.3, 5, 10]} />
+                <meshStandardMaterial color="#262d38" roughness={0.92} />
+              </mesh>
+              <mesh position={[s2 * 0.1, -0.7, 0.42]} rotation={[-0.08, 0, 0]}>
+                <boxGeometry args={[0.115, 0.07, 0.26]} />
+                <meshStandardMaterial color="#12161d" roughness={0.45} metalness={0.15} />
+              </mesh>
+            </group>
+          ))}
+        </>
+      )}
     </group>
   );
 }
