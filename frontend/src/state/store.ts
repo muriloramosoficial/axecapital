@@ -21,6 +21,8 @@ export type CameraMode = 'director' | 'follow' | 'manual';
 const HUD_MODES: HudMode[] = ['full', 'broadcast', 'clean'];
 
 /** Painéis que o backoffice pode ligar/desligar individualmente. */
+export type Quality = 'alta' | 'media' | 'baixa';
+
 export type HudKey =
   | 'topHud'
   | 'pipeline'
@@ -200,6 +202,10 @@ interface State {
   cameraMode: CameraMode;
   /** agente destacado pela direção de câmera (usado no lower-third da live) */
   spotlight: { agentId: string; shot: string; reason: string; at: number } | null;
+  /** timestamp do último corte de câmera — dispara o flash de switcher */
+  cameraCutAt: number;
+  /** qualidade gráfica: pesa reflexos, bloom e resolução */
+  quality: Quality;
   selectedAgentId: string | null;
   ambient: AmbientPing[];
   flash: { deskId: string; tone: string; at: number } | null;
@@ -210,6 +216,8 @@ interface State {
   setHudMode: (v: HudMode) => void;
   setCameraMode: (v: CameraMode) => void;
   setSpotlight: (v: { agentId: string; shot: string; reason: string } | null) => void;
+  markCameraCut: () => void;
+  setQuality: (v: Quality) => void;
   cycleHud: () => void;
   setUiScale: (v: number) => void;
   hudOn: boolean;
@@ -263,6 +271,10 @@ export const useStore = create<State>((set, get) => ({
     ['director', 'follow', 'manual'].includes(r) ? (r as CameraMode) : null,
   ),
   spotlight: null,
+  cameraCutAt: 0,
+  quality: readLS<Quality>('axe.quality', 'alta', (r) =>
+    ['alta', 'media', 'baixa'].includes(r) ? (r as Quality) : null,
+  ),
   hudMode: readLS<HudMode>('axe.hudMode', 'full', (r) => (HUD_MODES.includes(r as HudMode) ? (r as HudMode) : null)),
   hudOn: readLS<boolean>('axe.hud.on', true, (r) => (r === '0' ? false : r === '1' ? true : null)),
   hudPrefs: readHudPrefs(),
@@ -282,6 +294,11 @@ export const useStore = create<State>((set, get) => ({
     set({ cameraMode: v, autoCamera: v !== 'manual', spotlight: v === 'manual' ? null : get().spotlight });
   },
   setSpotlight: (v) => set({ spotlight: v ? { ...v, at: Date.now() } : null }),
+  markCameraCut: () => set({ cameraCutAt: Date.now() }),
+  setQuality: (v) => {
+    writeLS('axe.quality', v);
+    set({ quality: v });
+  },
   setHudMode: (v) => {
     writeLS('axe.hudMode', v);
     set({ hudMode: v });
@@ -316,6 +333,7 @@ export const useStore = create<State>((set, get) => ({
       hudPrefs: readHudPrefs(),
       hudOn: localStorage.getItem('axe.hud.on') !== '0',
       uiScale: Number(localStorage.getItem('axe.uiScale') ?? '1') || 1,
+      quality: (localStorage.getItem('axe.quality') as Quality) ?? 'alta',
     });
   },
   setUiScale: (v) => {
@@ -472,7 +490,12 @@ export function connect() {
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (!e.key) return;
-    if (e.key.startsWith('axe.hud') || e.key === 'axe.uiScale' || e.key.startsWith('axe.watermark')) {
+    if (
+      e.key.startsWith('axe.hud') ||
+      e.key === 'axe.uiScale' ||
+      e.key === 'axe.quality' ||
+      e.key.startsWith('axe.watermark')
+    ) {
       useStore.getState().reloadHudFromStorage();
     }
   });

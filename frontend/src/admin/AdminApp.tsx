@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { connect, useStore, HUD_CATALOG, type HudKey } from '../state/store';
+import { connect, useStore, HUD_CATALOG, type HudKey, type Quality } from '../state/store';
 import { api } from '../lib/api';
 import { money } from '../lib/format';
+import { AdminGate } from './AdminLogin';
 import { SettingsModal } from '../ui/SettingsModal';
 import { HireAgentModal } from '../ui/HireAgentModal';
 import type { MarketRegime } from '../types';
@@ -20,6 +21,7 @@ const SECTIONS = [
   { id: 'ia', label: 'Inteligência artificial', icon: '🧠' },
   { id: 'agentes', label: 'Agentes', icon: '👔' },
   { id: 'marca', label: 'Telão & marca', icon: '🎬' },
+  { id: 'acesso', label: 'Acesso', icon: '🔒' },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -65,7 +67,7 @@ function Toggle({
   );
 }
 
-export default function AdminApp() {
+function Backoffice({ user, logout }: { user: string; logout: () => void }) {
   const [section, setSection] = useState<SectionId>(() => {
     const hash = window.location.hash.replace('#', '') as SectionId;
     return SECTIONS.some((s) => s.id === hash) ? hash : 'hud';
@@ -85,6 +87,10 @@ export default function AdminApp() {
   const setHudPref = useStore((s) => s.setHudPref);
   const setAllHudPrefs = useStore((s) => s.setAllHudPrefs);
   const uiScale = useStore((s) => s.uiScale);
+  const quality = useStore((s) => s.quality);
+  const setQuality = useStore((s) => s.setQuality);
+  const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
+  const [pwdMsg, setPwdMsg] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const setUiScale = useStore((s) => s.setUiScale);
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
@@ -156,9 +162,19 @@ export default function AdminApp() {
             <span className={`h-1.5 w-1.5 rounded-full ${mt5Connected ? 'bg-emerald-400' : 'bg-slate-600'}`} />
             <span className="text-slate-500">{mt5Connected ? 'MT5 conectado' : 'MT5 desconectado'}</span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+            <span className="text-slate-500">{user}</span>
+          </div>
           <a href="/" className="mt-2 block rounded-lg border border-white/10 px-3 py-2 text-center text-slate-300 hover:border-emerald-400/40 hover:text-emerald-300">
             ← voltar ao escritório
           </a>
+          <button
+            onClick={logout}
+            className="w-full rounded-lg border border-white/10 px-3 py-2 text-center text-slate-500 hover:border-rose-400/40 hover:text-rose-300"
+          >
+            sair
+          </button>
         </div>
       </aside>
 
@@ -345,6 +361,32 @@ export default function AdminApp() {
                     onClick={() => setCameraMode(id)}
                     className={`rounded-lg px-3 py-2 text-[12px] transition ${
                       cameraMode === id ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-slate-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card
+              title="Qualidade gráfica"
+              hint="Se a cena travar ou aparecer rasgada na sua máquina, baixe um nível. Vale na hora para a aba do escritório."
+            >
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['alta', '◆ Alta', 'reflexo no piso, bloom e DPR até 1.9'],
+                    ['media', '◈ Média', 'reflexo leve, bloom menor, DPR até 1.4'],
+                    ['baixa', '◇ Baixa', 'sem reflexo nem pós-processamento'],
+                  ] as [Quality, string, string][]
+                ).map(([id, label, hint]) => (
+                  <button
+                    key={id}
+                    title={hint}
+                    onClick={() => setQuality(id)}
+                    className={`rounded-lg px-3 py-2 text-[12px] transition ${
+                      quality === id ? 'bg-emerald-400/15 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-slate-100'
                     }`}
                   >
                     {label}
@@ -554,10 +596,83 @@ export default function AdminApp() {
             </Card>
           </div>
         )}
+
+        {section === 'acesso' && (
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card
+              title="Trocar senha"
+              hint="A senha fica com hash scrypt em data/admin.json, dentro da pasta da instalação. Trocar derruba todas as sessões abertas."
+            >
+              <div className="grid gap-3">
+                {(
+                  [
+                    ['current', 'Senha atual'],
+                    ['next', 'Nova senha'],
+                    ['confirm', 'Repita a nova senha'],
+                  ] as const
+                ).map(([k, label]) => (
+                  <label key={k} className="block">
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</span>
+                    <input
+                      type="password"
+                      value={pwd[k]}
+                      onChange={(e) => setPwd((v) => ({ ...v, [k]: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[12px] text-slate-200 outline-none focus:border-emerald-400/40"
+                    />
+                  </label>
+                ))}
+              </div>
+              {pwdMsg && (
+                <div
+                  className={`mt-3 rounded-lg px-3 py-2 text-[11px] ${
+                    pwdMsg.tone === 'ok' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'
+                  }`}
+                >
+                  {pwdMsg.text}
+                </div>
+              )}
+              <button
+                className="btn btn-accent mt-3"
+                onClick={async () => {
+                  if (pwd.next !== pwd.confirm) return setPwdMsg({ tone: 'err', text: 'as senhas novas não batem' });
+                  try {
+                    await api.adminPassword(pwd.current, pwd.next);
+                    setPwd({ current: '', next: '', confirm: '' });
+                    setPwdMsg({ tone: 'ok', text: 'senha trocada — entre de novo com a nova senha' });
+                    setTimeout(logout, 1600);
+                  } catch (err: any) {
+                    setPwdMsg({ tone: 'err', text: err?.message ?? 'não foi possível trocar' });
+                  }
+                }}
+              >
+                Salvar nova senha
+              </button>
+            </Card>
+
+            <Card title="Como funciona o acesso" hint="Pensado para rodar na sua máquina ou na sua rede local.">
+              <ul className="space-y-2 text-[11px] leading-snug text-slate-400">
+                <li>
+                  <span className="text-slate-200">Usuário de fábrica:</span> <span className="mono">admin</span> · senha{' '}
+                  <span className="mono">axecapital</span>.
+                </li>
+                <li>Dá para sobrescrever no primeiro boot com as variáveis AXE_ADMIN_USER e AXE_ADMIN_PASSWORD.</li>
+                <li>A sessão dura 12h e fica só neste navegador; o escritório (/) continua aberto, sem login.</li>
+                <li>
+                  Esqueceu a senha? Apague <span className="mono">data/admin.json</span> na pasta da instalação e reinicie o
+                  engine — ele recria o usuário padrão.
+                </li>
+              </ul>
+            </Card>
+          </div>
+        )}
       </main>
 
       {modal && <SettingsModal initialTab={modal} onClose={() => setModal(null)} />}
       {hire && <HireAgentModal onClose={() => setHire(false)} />}
     </div>
   );
+}
+
+export default function AdminApp() {
+  return <AdminGate>{({ user, logout }) => <Backoffice user={user} logout={logout} />}</AdminGate>;
 }

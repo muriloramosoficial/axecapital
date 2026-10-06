@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { MeshReflectorMaterial, Text } from '@react-three/drei';
+import { MeshReflectorMaterial } from '@react-three/drei';
+import { Text } from './SceneText';
 import * as THREE from 'three';
 import { getScreen } from './screens';
 import { useStore } from '../state/store';
@@ -237,7 +238,7 @@ function ResearchLabRoom() {
   );
 }
 
-export function Office() {
+export function Office({ reflector = 512 }: { reflector?: number }) {
   const tvEnabled = useStore((s) => s.tvEnabled);
   const watchlist = useStore((s) => s.watchlist);
   const focus = useStore((s) => s.focus);
@@ -270,19 +271,23 @@ export function Office() {
       {/* ───────────────────────────── floor ───────────────────────────── */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 2]} receiveShadow>
         <planeGeometry args={[FLOOR_W, FLOOR_D]} />
-        <MeshReflectorMaterial
-          blur={[300, 90]}
-          resolution={512}
-          mixBlur={1}
-          mixStrength={7}
-          roughness={0.78}
-          depthScale={1.1}
-          minDepthThreshold={0.4}
-          maxDepthThreshold={1.3}
-          color="#c3c9d1"
-          metalness={0.18}
-          mirror={0.22}
-        />
+        {reflector > 0 ? (
+          <MeshReflectorMaterial
+            blur={[220, 70]}
+            resolution={reflector}
+            mixBlur={1.1}
+            mixStrength={5.5}
+            roughness={0.82}
+            depthScale={1.05}
+            minDepthThreshold={0.45}
+            maxDepthThreshold={1.3}
+            color="#c6ccd4"
+            metalness={0.16}
+            mirror={0.2}
+          />
+        ) : (
+          <meshStandardMaterial color="#c6ccd4" roughness={0.9} metalness={0.05} />
+        )}
       </mesh>
 
       {/* carpet strips to break up the floor */}
@@ -296,7 +301,7 @@ export function Office() {
       {/* ───────────────────────────── walls ───────────────────────────── */}
       <mesh position={[0, WALL_H / 2, BACK_Z]} receiveShadow>
         <planeGeometry args={[FLOOR_W, WALL_H]} />
-        <meshStandardMaterial color="#e7eaef" roughness={0.95} />
+        <meshStandardMaterial color="#e7eaef" roughness={0.95} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[0, WALL_H / 2, 21]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[FLOOR_W, WALL_H]} />
@@ -304,11 +309,11 @@ export function Office() {
       </mesh>
       <mesh position={[-FLOOR_W / 2, WALL_H / 2, 2]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[FLOOR_D, WALL_H]} />
-        <meshStandardMaterial color="#e4e8ee" roughness={0.95} />
+        <meshStandardMaterial color="#e4e8ee" roughness={0.95} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[FLOOR_W / 2, WALL_H / 2, 2]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[FLOOR_D, WALL_H]} />
-        <meshStandardMaterial color="#e4e8ee" roughness={0.95} />
+        <meshStandardMaterial color="#e4e8ee" roughness={0.95} side={THREE.DoubleSide} />
       </mesh>
       {/* ceiling */}
       <mesh position={[0, WALL_H, 2]} rotation={[Math.PI / 2, 0, 0]}>

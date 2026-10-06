@@ -1,9 +1,20 @@
 import type { AIConfig, Agent, AgentRole, BrainSummary, SymbolInfo } from '../types';
 
+/** Token de sessão do backoffice (guardado pelo /admin). */
+export const adminToken = {
+  get: () => (typeof localStorage === 'undefined' ? null : localStorage.getItem('axe.admin.token')),
+  set: (v: string | null) => (v ? localStorage.setItem('axe.admin.token', v) : localStorage.removeItem('axe.admin.token')),
+};
+
 const json = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  const token = adminToken.get();
   const res = await fetch(url, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers || {}),
+    },
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({ error: res.statusText })))?.error ?? 'request failed');
   return res.json();
@@ -38,6 +49,19 @@ export const api = {
   /** draft = valores atuais do formulário, testados sem precisar salvar antes */
   aiModels: (draft?: Partial<AIConfig>) =>
     json<{ models: string[] }>('/api/ai/models', { method: 'POST', body: JSON.stringify(draft ?? {}) }),
+  adminInfo: () => json<{ user: string; mustChangePassword: boolean }>('/api/admin/info'),
+  adminLogin: (user: string, password: string) =>
+    json<{ token: string; user: string; mustChangePassword: boolean }>('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ user, password }),
+    }),
+  adminSession: () => json<{ ok: boolean; user: string }>('/api/admin/session'),
+  adminLogout: () => json<{ ok: boolean }>('/api/admin/logout', { method: 'POST' }),
+  adminPassword: (currentPassword: string, newPassword: string, user?: string) =>
+    json<{ ok: boolean; error?: string }>('/api/admin/password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword, user }),
+    }),
   aiTest: (draft?: Partial<AIConfig>) =>
     json<{ ok: boolean; text?: string; error?: string; ms?: number }>('/api/ai/test', {
       method: 'POST',

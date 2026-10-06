@@ -14,6 +14,7 @@ import { lab } from './engines/research-lab.js';
 import { wire } from './engines/news-crawler.js';
 import { briefing } from './engines/briefing.js';
 import { brains } from './agents/learning.js';
+import { adminAuth, requireAdmin } from './core/admin-auth.js';
 import type { AgentRole, MarketRegime } from './core/types.js';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -284,6 +285,28 @@ const testPrompt = async (req: any, res: any) => {
   }
 };
 api.post('/ai/test', testPrompt);
+
+// ──────────────────────────────────────────── backoffice (/admin) ──
+api.get('/admin/info', (_req, res) => res.json(adminAuth.info()));
+api.post('/admin/login', (req, res) => {
+  const out = adminAuth.login(String(req.body?.user ?? ''), String(req.body?.password ?? ''));
+  if (!out) return res.status(401).json({ error: 'usuário ou senha inválidos' });
+  res.json(out);
+});
+api.get('/admin/session', requireAdmin, (req: any, res) => res.json({ ok: true, user: req.admin.user }));
+api.post('/admin/logout', (req, res) => {
+  const header = String(req.headers.authorization ?? '');
+  adminAuth.logout(header.startsWith('Bearer ') ? header.slice(7) : undefined);
+  res.json({ ok: true });
+});
+api.post('/admin/password', requireAdmin, (req, res) => {
+  const out = adminAuth.changePassword(
+    String(req.body?.currentPassword ?? ''),
+    String(req.body?.newPassword ?? ''),
+    req.body?.user ? String(req.body.user) : undefined,
+  );
+  res.status(out.ok ? 200 : 400).json(out);
+});
 
 /** Sala de pesquisa: campeões, leaderboard e descobertas. */
 api.get('/lab', (_req, res) => res.json(lab.summary()));

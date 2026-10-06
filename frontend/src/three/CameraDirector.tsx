@@ -5,14 +5,20 @@ import { useStore } from '../state/store';
 import type { Agent, Desk } from '../types';
 
 /**
- * Direção de câmera "de transmissão".
+ * Direção de câmera de transmissão.
  *
- * Em vez de um único plano geral, a câmera trabalha com um roteiro de planos
- * (estabelecimento, push-in, órbita, over-the-shoulder, travelling pela parede
- * de monitores…), corta sozinha entre as mesas mais interessantes e interrompe
- * o roteiro quando o engine dispara um evento importante (oportunidade,
- * aprovação, execução, stop). Cada plano tem easing próprio e um leve
- * movimento de câmera na mão para não parecer um render estático.
+ * Funciona como um switcher de TV: existe um ROTEIRO fixo (abertura ampla por
+ * trás do pregão → mesas → telão → travelling pelo chão → research lab → …) que
+ * se repete com variações, e o engine pode INTERROMPER o roteiro quando algo
+ * importante acontece (oportunidade, aprovação, execução, stop).
+ *
+ * Duas regras evitam os artefatos que apareciam antes:
+ *  1. CORTE SECO — a câmera nunca interpola de um plano para o outro; ela é
+ *     reposicionada e um flash curto disfarça o corte. Assim ela nunca
+ *     atravessa parede/mesa (era isso que gerava as "barras cinzas" na tela).
+ *  2. CONTENÇÃO — todo plano interno é limitado à caixa da sala, com margem das
+ *     paredes; só os planos de abertura ficam fora, acima do pé-direito, onde a
+ *     sala é vista como uma maquete aberta.
  */
 
 export const OVERVIEW = {
@@ -20,16 +26,30 @@ export const OVERVIEW = {
   target: new THREE.Vector3(0, 1.6, -1),
 };
 
-type ShotKind = 'ESTABLISH' | 'PUSH_IN' | 'ORBIT' | 'OVER_SHOULDER' | 'WALL_SWEEP' | 'FLOOR_GLIDE' | 'CLOSE_UP';
+/** Caixa útil da sala (paredes em ±23 / -15 / +21, pé-direito 6.2). */
+const ROOM = { minX: -20.5, maxX: 20.5, minZ: -13.2, maxZ: 19, minY: 0.9, maxY: 5.6 };
+
+type ShotKind =
+  | 'ESTABLISH'
+  | 'CRANE'
+  | 'PUSH_IN'
+  | 'ORBIT'
+  | 'OVER_SHOULDER'
+  | 'WALL_SWEEP'
+  | 'BRAND'
+  | 'FLOOR_GLIDE'
+  | 'LAB'
+  | 'CLOSE_UP';
 
 interface Shot {
   kind: ShotKind;
   label: string;
   agentId?: string;
   reason: string;
+  /** plano externo (maquete) — não sofre contenção */
+  exterior?: boolean;
   start: { pos: THREE.Vector3; target: THREE.Vector3 };
   end: { pos: THREE.Vector3; target: THREE.Vector3 };
-  /** órbita: ângulos inicial/final em torno da mesa */
   orbit?: { center: THREE.Vector3; radius: number; from: number; to: number; height: number };
   duration: number;
   startedAt: number;
@@ -37,9 +57,32 @@ interface Shot {
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+const rand = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+function clampInside(p: THREE.Vector3) {
+  p.x = THREE.MathUtils.clamp(p.x, ROOM.minX, ROOM.maxX);
+  p.y = THREE.MathUtils.clamp(p.y, ROOM.minY, ROOM.maxY);
+  p.z = THREE.MathUtils.clamp(p.z, ROOM.minZ, ROOM.maxZ);
+  return p;
+}
+
+/** Empurra a câmera para fora de qualquer mesa (raio ~1.6m) para não entrar no móvel. */
+function avoidDesks(p: THREE.Vector3, desks: Desk[], exclude?: string) {
+  for (const d of desks) {
+    if (d.id === exclude) continue;
+    const dx = p.x - d.x;
+    const dz = p.z - d.z;
+    const dist = Math.hypot(dx, dz);
+    const min = Math.max(d.width, d.depth) * 0.6 + 0.55;
+    if (dist < min && dist > 0.001) {
+      p.x = d.x + (dx / dist) * min;
+      p.z = d.z + (dz / dist) * min;
+    }
+  }
+  return p;
+}
 
 function deskFront(desk: Desk, distance: number, height: number) {
-  // vetor que sai da frente da mesa (lado onde o agente senta)
   const dir = new THREE.Vector3(Math.sin(desk.rot), 0, Math.cos(desk.rot)).normalize();
   const seat = new THREE.Vector3(desk.x, 0, desk.z).add(dir.clone().multiplyScalar(0.8));
   return seat.clone().add(dir.clone().multiplyScalar(distance)).setY(height);
@@ -60,14 +103,18 @@ function interest(agent: Agent | undefined, lastSeen: number) {
   if (agent.state === 'ALERT' || agent.state === 'APPROVED' || agent.state === 'REJECTED') score += 6;
   if (agent.state === 'ANALYZING' || agent.state === 'SCANNING') score += 2;
   if ((agent.daily?.trades ?? 0) > 0) score += 2;
-  // evita repetir a mesma mesa: quanto mais tempo sem aparecer, melhor
   score += Math.min(8, (Date.now() - lastSeen) / 12000);
   return score;
 }
 
+/** Roteiro base da live: a cada volta a câmera passa por tudo que importa. */
+type Beat = 'OPEN' | 'AGENT' | 'WALL' | 'BRAND' | 'GLIDE' | 'LAB';
+const RUNDOWN: Beat[] = ['OPEN', 'AGENT', 'BRAND', 'AGENT', 'GLIDE', 'AGENT', 'WALL', 'AGENT', 'LAB', 'AGENT'];
+
 export function CameraDirector({ controls }: { controls: React.MutableRefObject<any> }) {
   const { camera } = useThree();
   const shot = useRef<Shot | null>(null);
+  const beat = useRef(0);
   const lastSeen = useRef<Record<string, number>>({});
   const manualUntil = useRef(0);
   const noise = useRef(Math.random() * 100);
@@ -85,19 +132,38 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
     return () => c.removeEventListener('start', onStart);
   }, [controls.current]);
 
+  /** Corte seco: posiciona a câmera no início do plano e pisca o flash. */
   const cut = (next: Shot) => {
     shot.current = next;
+    const st = useStore.getState();
     if (next.agentId) {
       lastSeen.current[next.agentId] = Date.now();
-      useStore.getState().setSpotlight({ agentId: next.agentId, shot: next.label, reason: next.reason });
+      st.setSpotlight({ agentId: next.agentId, shot: next.label, reason: next.reason });
     } else {
-      useStore.getState().setSpotlight(null);
+      st.setSpotlight(null);
+    }
+    st.markCameraCut();
+    const ctrl = controls.current;
+    const pos = next.orbit
+      ? new THREE.Vector3(
+          next.orbit.center.x + Math.sin(next.orbit.from) * next.orbit.radius,
+          next.orbit.height,
+          next.orbit.center.z + Math.cos(next.orbit.from) * next.orbit.radius,
+        )
+      : next.start.pos.clone();
+    camera.position.copy(pos);
+    if (ctrl) {
+      ctrl.target.copy(next.orbit ? next.orbit.center : next.start.target);
+      ctrl.update();
     }
   };
 
   const buildDeskShot = (desk: Desk, agent: Agent | undefined, kind: ShotKind, reason: string): Shot => {
     const head = deskHead(desk);
     const now = performance.now();
+    const desks = useStore.getState().desks;
+    const place = (v: THREE.Vector3) => avoidDesks(clampInside(v), desks, desk.id);
+
     if (kind === 'ORBIT') {
       const base = Math.atan2(camera.position.x - desk.x, camera.position.z - desk.z);
       const dirSign = Math.random() > 0.5 ? 1 : -1;
@@ -106,7 +172,7 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
         label: 'ORBIT',
         agentId: agent?.id,
         reason,
-        orbit: { center: head.clone(), radius: 3.9, from: base, to: base + dirSign * 0.85, height: 2.25 },
+        orbit: { center: head.clone(), radius: 3.6, from: base, to: base + dirSign * 0.9, height: 2.2 },
         start: { pos: camera.position.clone(), target: head.clone() },
         end: { pos: camera.position.clone(), target: head.clone() },
         duration: 9000,
@@ -114,14 +180,14 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
       };
     }
     if (kind === 'OVER_SHOULDER') {
-      const behind = deskFront(desk, 2.5, 2.1);
+      const behind = deskFront(desk, 2.4, 2.05);
       return {
         kind,
         label: 'OVER THE SHOULDER',
         agentId: agent?.id,
         reason,
-        start: { pos: behind.clone().add(new THREE.Vector3(0.9, 0.5, 0)), target: head.clone() },
-        end: { pos: behind.clone().add(new THREE.Vector3(0.55, 0.12, 0)), target: head.clone().setY(1.35) },
+        start: { pos: place(behind.clone().add(new THREE.Vector3(0.85, 0.45, 0))), target: head.clone() },
+        end: { pos: place(behind.clone().add(new THREE.Vector3(0.5, 0.1, 0))), target: head.clone().setY(1.34) },
         duration: 7500,
         startedAt: now,
       };
@@ -132,89 +198,126 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
         label: 'CLOSE UP',
         agentId: agent?.id,
         reason,
-        start: { pos: deskFront(desk, 3.4, 2.0), target: head.clone() },
-        end: { pos: deskFront(desk, 2.1, 1.75), target: head.clone().setY(1.45) },
+        start: { pos: place(deskFront(desk, 3.2, 1.95)), target: head.clone() },
+        end: { pos: place(deskFront(desk, 2.0, 1.72)), target: head.clone().setY(1.44) },
         duration: 6500,
         startedAt: now,
       };
     }
-    // PUSH_IN
     return {
       kind: 'PUSH_IN',
       label: 'PUSH IN',
       agentId: agent?.id,
       reason,
-      start: { pos: deskFront(desk, 8.2, 4.4), target: head.clone() },
-      end: { pos: deskFront(desk, 3.3, 2.1), target: head.clone() },
+      start: { pos: place(deskFront(desk, 7.4, 3.9)), target: head.clone() },
+      end: { pos: place(deskFront(desk, 3.1, 2.0)), target: head.clone() },
       duration: 8500,
       startedAt: now,
     };
   };
 
-  const buildAmbientShot = (): Shot => {
-    const now = performance.now();
-    const kinds: ShotKind[] = ['ESTABLISH', 'WALL_SWEEP', 'FLOOR_GLIDE'];
-    const kind = kinds[Math.floor(Math.random() * kinds.length)];
-    if (kind === 'WALL_SWEEP') {
-      const dir = Math.random() > 0.5 ? 1 : -1;
-      return {
-        kind,
-        label: 'MARKET INTELLIGENCE',
-        reason: 'parede de monitores',
-        start: { pos: new THREE.Vector3(-11 * dir, 4.6, -3.5), target: new THREE.Vector3(-6 * dir, 3.6, -14.6) },
-        end: { pos: new THREE.Vector3(11 * dir, 4.2, -2.2), target: new THREE.Vector3(6 * dir, 3.4, -14.6) },
-        duration: 13000,
-        startedAt: now,
-      };
-    }
-    if (kind === 'FLOOR_GLIDE') {
-      const dir = Math.random() > 0.5 ? 1 : -1;
-      return {
-        kind,
-        label: 'TRADING FLOOR',
-        reason: 'visão geral da mesa',
-        start: { pos: new THREE.Vector3(14 * dir, 7.2, 12), target: new THREE.Vector3(2 * dir, 1.4, 0) },
-        end: { pos: new THREE.Vector3(-6 * dir, 5.4, 6), target: new THREE.Vector3(-1 * dir, 1.3, -4) },
-        duration: 14000,
-        startedAt: now,
-      };
-    }
-    return {
-      kind: 'ESTABLISH',
-      label: 'AXE CAPITAL',
-      reason: 'plano geral',
-      start: { pos: OVERVIEW.pos.clone().add(new THREE.Vector3(6, 1.5, 2)), target: OVERVIEW.target.clone() },
-      end: { pos: OVERVIEW.pos.clone().add(new THREE.Vector3(-6, -1.2, -1)), target: OVERVIEW.target.clone() },
-      duration: 15000,
-      startedAt: now,
-    };
-  };
-
-  const pickNext = (): Shot => {
-    const { desks, agents, cameraMode } = useStore.getState();
-    // 1 em cada 4 planos é ambiente, para respirar
-    const ambient = Math.random() < 0.26 || cameraMode === 'follow';
+  const buildAgentShot = (): Shot | null => {
+    const { desks, agents } = useStore.getState();
     const staffed = desks
       .map((d) => ({ desk: d, agent: agents.find((a) => a.deskId === d.id) }))
       .filter((x) => !!x.agent);
-    if (ambient || !staffed.length) return buildAmbientShot();
-
+    if (!staffed.length) return null;
     const ranked = staffed
       .map((x) => ({ ...x, score: interest(x.agent, lastSeen.current[x.agent!.id] ?? 0) }))
       .sort((a, b) => b.score - a.score);
-    const pool = ranked.slice(0, Math.min(4, ranked.length));
-    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    const chosen = rand(ranked.slice(0, Math.min(4, ranked.length)));
     const agent = chosen.agent!;
     const kinds: ShotKind[] = agent.openSymbol
       ? ['PUSH_IN', 'ORBIT', 'OVER_SHOULDER', 'CLOSE_UP']
       : ['PUSH_IN', 'ORBIT', 'OVER_SHOULDER'];
-    const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const reason = agent.openSymbol
       ? `posição aberta em ${agent.openSymbol}`
       : agent.state !== 'IDLE'
         ? agent.statusLine ?? agent.state
         : 'acompanhando o mercado';
-    return buildDeskShot(chosen.desk, agent, kind, reason);
+    return buildDeskShot(chosen.desk, agent, rand(kinds), reason);
+  };
+
+  /** Planos de cenário — cada beat tem a sua geometria própria. */
+  const buildBeatShot = (b: Beat): Shot => {
+    const now = performance.now();
+    switch (b) {
+      case 'OPEN': {
+        // abertura: maquete vista de trás/acima do pregão, descendo devagar
+        const side = Math.random() > 0.5 ? 1 : -1;
+        return {
+          kind: 'ESTABLISH',
+          label: 'AXE CAPITAL',
+          reason: 'abertura — visão geral do pregão',
+          exterior: true,
+          start: { pos: new THREE.Vector3(9 * side, 19.5, 31), target: new THREE.Vector3(0, 2.2, -2) },
+          end: { pos: new THREE.Vector3(3 * side, 13.5, 24), target: new THREE.Vector3(0, 2.0, -5) },
+          duration: 13000,
+          startedAt: now,
+        };
+      }
+      case 'BRAND':
+        // telão central: entra baixo e sobe até a arte da marca
+        return {
+          kind: 'BRAND',
+          label: 'MAIN SCREEN',
+          reason: 'telão central da Axe Capital',
+          start: { pos: new THREE.Vector3(0.6, 2.0, 7.6), target: new THREE.Vector3(0, 3.4, -14.8) },
+          end: { pos: new THREE.Vector3(-0.4, 3.4, 3.4), target: new THREE.Vector3(0, 4.3, -14.8) },
+          duration: 10000,
+          startedAt: now,
+        };
+      case 'WALL': {
+        // travelling lateral colado na parede de monitores
+        const dir = Math.random() > 0.5 ? 1 : -1;
+        return {
+          kind: 'WALL_SWEEP',
+          label: 'MARKET INTELLIGENCE',
+          reason: 'parede de monitores',
+          start: { pos: new THREE.Vector3(-10.5 * dir, 4.1, -5.2), target: new THREE.Vector3(-7 * dir, 3.7, -14.8) },
+          end: { pos: new THREE.Vector3(10.5 * dir, 3.6, -4.2), target: new THREE.Vector3(7 * dir, 3.5, -14.8) },
+          duration: 12000,
+          startedAt: now,
+        };
+      }
+      case 'GLIDE': {
+        // travelling baixo pelo corredor, entre as fileiras de mesas
+        const dir = Math.random() > 0.5 ? 1 : -1;
+        return {
+          kind: 'FLOOR_GLIDE',
+          label: 'TRADING FLOOR',
+          reason: 'corredor da mesa',
+          start: { pos: new THREE.Vector3(13.5 * dir, 2.6, 11.5), target: new THREE.Vector3(3 * dir, 1.5, 1) },
+          end: { pos: new THREE.Vector3(-2 * dir, 2.2, 4.5), target: new THREE.Vector3(-2 * dir, 1.4, -8) },
+          duration: 13000,
+          startedAt: now,
+        };
+      }
+      case 'LAB':
+        // research lab, visto do pregão através do vidro
+        return {
+          kind: 'LAB',
+          label: 'RESEARCH LAB',
+          reason: 'backtest e treinamento rodando',
+          start: { pos: new THREE.Vector3(-6.5, 3.1, 9.6), target: new THREE.Vector3(-2, 2.6, 18) },
+          end: { pos: new THREE.Vector3(4.5, 2.6, 12.0), target: new THREE.Vector3(1.5, 2.6, 20.4) },
+          duration: 10000,
+          startedAt: now,
+        };
+      default:
+        return buildBeatShot('OPEN');
+    }
+  };
+
+  const pickNext = (): Shot => {
+    const { cameraMode } = useStore.getState();
+    if (cameraMode === 'follow') {
+      return buildAgentShot() ?? buildBeatShot('OPEN');
+    }
+    const b = RUNDOWN[beat.current % RUNDOWN.length];
+    beat.current += 1;
+    if (b === 'AGENT') return buildAgentShot() ?? buildBeatShot('GLIDE');
+    return buildBeatShot(b);
   };
 
   useFrame((_, dt) => {
@@ -233,8 +336,10 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
       lastFocusAt.current = focus.at;
       const desk = st.desks.find((d) => d.id === focus.deskId);
       const agent = st.agents.find((a) => a.id === focus.agentId);
-      if (desk) {
-        const current = shot.current;
+      const current = shot.current;
+      const fresh = current ? performance.now() - current.startedAt : 9e9;
+      // não corta em cima de um plano que acabou de começar (evita pisca-pisca)
+      if (desk && fresh > 2600) {
         const sameDesk = current?.agentId && current.agentId === agent?.id;
         const kind: ShotKind = sameDesk ? 'ORBIT' : Math.random() > 0.45 ? 'PUSH_IN' : 'OVER_SHOULDER';
         cut(buildDeskShot(desk, agent, kind, focus.label ?? 'evento no pregão'));
@@ -262,17 +367,23 @@ export function CameraDirector({ controls }: { controls: React.MutableRefObject<
       target = s.start.target.clone().lerp(s.end.target, e);
     }
 
-    // leve respiração de câmera na mão
+    if (!s.exterior) {
+      clampInside(pos);
+      avoidDesks(pos, st.desks, s.agentId ? st.agents.find((a) => a.id === s.agentId)?.deskId : undefined);
+    }
+
+    // leve respiração de câmera na mão (amplitude menor nos planos fechados)
     noise.current += dt;
     const n = noise.current;
-    pos.x += Math.sin(n * 0.63) * 0.035;
-    pos.y += Math.sin(n * 0.47 + 1.3) * 0.028;
-    pos.z += Math.cos(n * 0.55 + 0.7) * 0.03;
+    const amp = s.kind === 'CLOSE_UP' || s.kind === 'OVER_SHOULDER' ? 0.018 : 0.034;
+    pos.x += Math.sin(n * 0.63) * amp;
+    pos.y += Math.sin(n * 0.47 + 1.3) * amp * 0.8;
+    pos.z += Math.cos(n * 0.55 + 0.7) * amp * 0.9;
 
-    // interpolação suave no corte (primeiros 700ms) para nunca "teleportar"
-    const blend = elapsed < 700 ? 0.085 : 0.16;
-    camera.position.lerp(pos, blend);
-    ctrl.target.lerp(target, blend * 1.1);
+    // suavização independente de framerate (sem "teleporte" nem tranco em 144Hz)
+    const k = 1 - Math.exp(-7.5 * dt);
+    camera.position.lerp(pos, k);
+    ctrl.target.lerp(target, Math.min(1, k * 1.15));
     ctrl.update();
 
     if (t >= 1) cut(pickNext());

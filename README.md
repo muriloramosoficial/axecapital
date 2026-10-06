@@ -496,6 +496,51 @@ As duas abas conversam por `localStorage` (`axe.hud.on`, `axe.hud.prefs`,
 `axe.uiScale`, `axe.watermark*`): marcou um painel no admin, ele aparece na aba do
 escritório na hora, sem recarregar.
 
+## 9.9 Direção de câmera, qualidade e os "retângulos cinzas"
+
+A cena foi endurecida contra os artefatos que apareciam na live:
+
+* **corte seco** — a câmera não interpola mais de um plano para o outro. Ela é
+  reposicionada e um flash curtíssimo disfarça o corte, como num switcher. Era a
+  interpolação que fazia a câmera atravessar paredes e mesas, e isso aparecia como
+  faixas cinzas cortando a tela;
+* **contenção** — todo plano interno é limitado à caixa da sala e empurrado para fora
+  das mesas; só a abertura fica por fora, acima do pé-direito, vendo a sala como uma
+  maquete (paredes agora são renderizadas dos dois lados, então não há mais "buraco");
+* **cortina de carregamento** — a cena só é revelada quando texturas e fontes estão
+  prontas, com barra de progresso;
+* **fonte local** — os letreiros 3D usam `public/fonts/axe-sans.woff` em vez de baixar
+  a Roboto do Google; sem internet, nada mais fica em branco;
+* **plaquinhas dos agentes em WebGL** — eram `<div>`s HTML flutuando sobre o canvas
+  (piscavam nos cortes e custavam caro); viraram texto 3D em billboard;
+* **sombra de contato assada uma vez** e piso com reflexo mais barato.
+
+**Roteiro da live** (`CameraDirector`): abertura geral por trás do pregão → mesa de um
+agente → telão central → mesa → travelling pelo corredor → mesa → parede de monitores →
+mesa → research lab → mesa, e repete, sempre escolhendo o agente mais "interessante"
+(posição aberta, execução, alerta, há mais tempo sem aparecer). Qualquer evento forte do
+engine interrompe o roteiro e corta para a mesa envolvida. Mexeu no mouse? A câmera
+devolve o controle por 25s.
+
+**Qualidade gráfica** (`/admin#mesa`): *alta* (reflexo no piso, bloom, DPR até 1.9),
+*média* (reflexo leve, DPR 1.4) e *baixa* (sem reflexo nem pós-processamento) — para
+máquina fraca ou live longa. Fica salvo em `axe.quality` e vale na hora.
+
+## 9.10 Login do backoffice
+
+O escritório (`/`) continua aberto, sem login — é a tela que vai pro ar. O backoffice
+(`/admin`) pede usuário e senha:
+
+| | |
+| --- | --- |
+| usuário | `admin` |
+| senha | `axecapital` |
+
+Troque em **/admin#acesso** logo no primeiro acesso. A senha é guardada com hash scrypt
+em `data/admin.json` (fora do git), a sessão dura 12h e fica só naquele navegador. Dá
+para definir outras credenciais no primeiro boot com `AXE_ADMIN_USER` e
+`AXE_ADMIN_PASSWORD`. Esqueceu? Apague `data/admin.json` e reinicie o engine.
+
 ## 10. Modo transmissão (live 24h no YouTube)
 
 O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:

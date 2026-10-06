@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
-import { Html } from '@react-three/drei';
+import { Billboard } from '@react-three/drei';
+import { Text } from './SceneText';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Agent, Desk } from '../types';
@@ -158,6 +159,13 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
     }
   });
 
+    const plateLabel = agent ? firstName : desk.label;
+  const plateName = agent?.symbol ? `${plateLabel} · ${agent.symbol}` : plateLabel;
+  const plateRaw = agent ? (agent.openSymbol ? agent.openPnl ?? 0 : agent.daily?.realized ?? 0) : 0;
+  const plateValue = agent && (agent.openSymbol || plateRaw !== 0) ? `${agent.openSymbol ? '● ' : ''}${money(plateRaw)}` : '';
+  const plateTone = plateRaw >= 0 ? '#5eead4' : '#fda4af';
+  const plateW = Math.max(0.95, 0.12 + plateName.length * 0.056 + (plateValue ? plateValue.length * 0.055 : 0));
+
   return (
     <group position={[desk.x, 0, desk.z]} rotation={[0, desk.rot, 0]} onClick={() => agent && onSelect(agent.id)}>
       {/* desktop */}
@@ -222,41 +230,44 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
 
       {highlighted && <pointLight position={[0, 1.9, 0.4]} intensity={7} distance={5.5} color="#cfe6ff" />}
 
-      <Html
-        position={[0, DESK_H + 1.3, desk.depth / 2]}
-        center
-        distanceFactor={9}
-        zIndexRange={[20, 0]}
-        style={{ pointerEvents: 'none' }}
-      >
-        <div
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-full border bg-[#0d141d]/85 px-2 py-[2px] backdrop-blur-sm"
-          style={{
-            borderColor: `${color}55`,
-            boxShadow: highlighted ? `0 0 16px ${color}66` : undefined,
-          }}
+      {/* Plaquinha do agente — texto 3D (antes era um <Html>, que flutuava
+          por cima da cena, piscava nos cortes de câmera e custava DOM). */}
+      <Billboard position={[0, DESK_H + 1.34, desk.depth / 2]}>
+        <mesh>
+          <planeGeometry args={[plateW, 0.2]} />
+          <meshBasicMaterial color="#0d141d" transparent opacity={0.82} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <mesh position={[-plateW / 2 + 0.085, 0, 0.004]}>
+          <circleGeometry args={[0.032, 12]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>
+        <Text
+          position={[-plateW / 2 + 0.145, 0, 0.005]}
+          anchorX="left"
+          anchorY="middle"
+          fontSize={0.1}
+          color="#e8eef6"
+          outlineWidth={0.004}
+          outlineColor="#05080d"
+          bold
         >
-          <span
-            className="h-[6px] w-[6px] shrink-0 rounded-full"
-            style={{ background: color, boxShadow: `0 0 6px ${color}` }}
-          />
-          <span className="text-[9px] font-semibold tracking-wide text-slate-100">
-            {agent ? firstName : desk.label}
-          </span>
-          {agent?.symbol && <span className="text-[8px] text-slate-400">{agent.symbol}</span>}
-          {agent && (agent.openSymbol || (agent.daily?.realized ?? 0) !== 0) && (
-            <span
-              className="mono text-[9px] font-semibold"
-              style={{
-                color: (agent.openSymbol ? agent.openPnl : agent.daily?.realized ?? 0) >= 0 ? '#5eead4' : '#fda4af',
-              }}
-            >
-              {agent.openSymbol ? '●' : ''}
-              {money(agent.openSymbol ? agent.openPnl : agent.daily?.realized ?? 0)}
-            </span>
-          )}
-        </div>
-      </Html>
+          {plateName}
+        </Text>
+        {plateValue && (
+          <Text
+            position={[plateW / 2 - 0.07, 0, 0.005]}
+            anchorX="right"
+            anchorY="middle"
+            fontSize={0.095}
+            color={plateTone}
+            outlineWidth={0.004}
+            outlineColor="#05080d"
+            bold
+          >
+            {plateValue}
+          </Text>
+        )}
+      </Billboard>
     </group>
   );
 }
