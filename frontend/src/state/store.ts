@@ -136,7 +136,10 @@ export const useStore = create<State>((set, get) => ({
         a.activity === u.activity &&
         a.symbol === u.symbol &&
         a.stats.analyses === u.stats.analyses &&
-        a.stats.trades === u.stats.trades
+        a.stats.trades === u.stats.trades &&
+        a.openPnl === u.openPnl &&
+        a.openSymbol === u.openSymbol &&
+        a.daily?.realized === u.daily?.realized
       )
         return a;
       dirty = true;

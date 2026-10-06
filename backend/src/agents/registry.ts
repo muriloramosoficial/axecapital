@@ -63,6 +63,8 @@ export class AgentRegistry {
       statusLine: `${ROLE_META[input.role].label} ready`,
       busyUntil: 0,
       stats: { analyses: 0, approvals: 0, rejections: 0, trades: 0 },
+      daily: { realized: 0, trades: 0, wins: 0, losses: 0 },
+      openPnl: 0,
       config: {
         aggressiveness: input.aggressiveness ?? 0.5,
         maxRiskPct: input.maxRiskPct ?? 0.5,
@@ -115,6 +117,29 @@ export class AgentRegistry {
     if (!a) return;
     a.activity = activity;
     bus.emit('AGENT_ACTIVITY', { id, activity, ttlMs });
+  }
+
+  /** Credit a realised result to the agent that owned the idea. */
+  settle(id: string, pnl: number) {
+    const a = this.agents.get(id);
+    if (!a) return;
+    a.daily.realized = Number((a.daily.realized + pnl).toFixed(2));
+    a.daily.trades++;
+    if (pnl > 0) a.daily.wins++;
+    else if (pnl < 0) a.daily.losses++;
+    a.openPnl = 0;
+    a.openSymbol = undefined;
+  }
+
+  resetDaily() {
+    for (const a of this.agents.values()) {
+      a.daily = { realized: 0, trades: 0, wins: 0, losses: 0 };
+      a.openPnl = 0;
+      a.openSymbol = undefined;
+      a.state = 'IDLE';
+      a.statusLine = 'New session';
+      a.busyUntil = 0;
+    }
   }
 
   clear() {

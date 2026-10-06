@@ -96,6 +96,8 @@ export interface Opportunity {
   takeProfit?: number;
   lots?: number;
   rejectionReason?: string;
+  /** scout that owns the idea — only one live entry per owner/symbol */
+  ownerAgentId?: string;
   agentTrail: { role: AgentRole; agentId: string; at: number }[];
   aiAssisted?: boolean;
 }
@@ -120,6 +122,11 @@ export interface Agent {
   statusLine: string;
   busyUntil: number;
   stats: { analyses: number; approvals: number; rejections: number; trades: number };
+  /** realised result of the day for this agent (shown on the desk) */
+  daily: { realized: number; trades: number; wins: number; losses: number };
+  /** live mark-to-market of the single position this agent is managing */
+  openPnl: number;
+  openSymbol?: string;
   config: {
     aggressiveness: number; // 0..1
     maxRiskPct: number;

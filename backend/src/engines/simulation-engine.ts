@@ -63,6 +63,8 @@ export class SimulationEngine {
   private cooldown = new Map<string, number>();
   private stageQueue: { opId: string; at: number; fn: () => void }[] = [];
   private dayStartEquity = 100_000;
+  private positionTrader = new Map<string, string>();
+  private lastMonitor = 0;
 
   get broker(): TradingBroker {
     return this.config.executionMode === 'MT5_LIVE' && this.mt5Connected ? this.mt5Broker : this.simBroker;
@@ -146,6 +148,8 @@ export class SimulationEngine {
     for (const scout of scouts) {
       if (scout.busyUntil > Date.now()) continue;
       if ((this.cooldown.get(scout.symbol!) ?? 0) > this.simNow) continue;
+      // ── ONE ENTRY AT A TIME: this agent is already managing a live position ──
+      if (this.positions.some((p) => p.agentId === scout.id || p.symbol === scout.symbol)) continue;
       if (Math.random() > 0.22) continue;
       agents.setState(scout.id, 'SCANNING', `Scanning ${scout.symbol}`);
       const candles = this.market.getCandles(scout.symbol!, 60);
@@ -176,6 +180,7 @@ export class SimulationEngine {
       stage: 'DETECTED',
       status: 'UNDER_REVIEW',
       scores: {},
+      ownerAgentId: scout.id,
       agentTrail: [{ role: 'MARKET_SCOUT', agentId: scout.id, at: this.simNow }],
       momentum: this.market.momentum(scout.symbol!) > 0 ? 'Bullish' : 'Bearish',
       volatility: price.volatility > 0.7 ? 'Extreme' : price.volatility > 0.45 ? 'Elevated' : price.volatility > 0.2 ? 'Moderate' : 'Low',
@@ -408,7 +413,15 @@ export class SimulationEngine {
       const pos = (await this.broker.getPositions()).find((p) => p.id === result.orderId);
       if (pos) {
         pos.opportunityId = op.id;
-        pos.agentId = agent.id;
+        pos.agentId = op.ownerAgentId ?? agent.id;
+      }
+      if (result.orderId) this.positionTrader.set(result.orderId, agent.id);
+      const owner = op.ownerAgentId ? agents.get(op.ownerAgentId) : undefined;
+      if (owner) {
+        owner.openSymbol = op.symbol;
+        owner.openPnl = 0;
+        agents.setState(owner.id, 'WAITING', `Managing ${op.side} ${op.symbol} · $0.00`, 0);
+        this.say(owner, `Position is live on ${op.symbol}. I own this one until it closes.`, 'info');
       }
     } catch (err: any) {
       agents.setState(agent.id, 'ERROR', `Execution error`, 2000);
@@ -433,6 +446,7 @@ export class SimulationEngine {
       return;
     }
     this.positions = this.simBroker.mark();
+    this.monitorOwners();
     for (const p of [...this.positions]) {
       const price = this.market.getPrice(p.symbol);
       if (!price) continue;
@@ -462,6 +476,35 @@ export class SimulationEngine {
       };
       this.closed.unshift(trade);
       this.closed = this.closed.slice(0, 120);
+
+      // ── daily P&L lands on the desk of the agent that owned the idea ──
+      const ownerId = p.agentId;
+      const owner = ownerId ? agents.get(ownerId) : undefined;
+      if (owner) {
+        agents.settle(owner.id, trade.pnl);
+        agents.setState(
+          owner.id,
+          trade.pnl >= 0 ? 'SUCCESS' : 'REJECTED',
+          `${trade.symbol} ${trade.result} ${fmtMoney(trade.pnl)} · day ${fmtMoney(owner.daily.realized)}`,
+          2600,
+        );
+        agents.setActivity(owner.id, trade.pnl >= 0 ? 'STRETCH' : 'WRITING');
+        this.say(
+          owner,
+          `${trade.symbol} closed ${trade.result.toLowerCase()} ${fmtMoney(trade.pnl)} — my day is now ${fmtMoney(owner.daily.realized)}.`,
+          trade.pnl >= 0 ? 'good' : 'bad',
+        );
+        bus.emit('CAMERA_FOCUS', { deskId: owner.deskId, agentId: owner.id, label: 'Trade result' });
+      }
+      const traderId = this.positionTrader.get(p.id);
+      const traderAgent = traderId ? agents.get(traderId) : undefined;
+      if (traderAgent && traderAgent.id !== owner?.id) {
+        traderAgent.daily.realized = Number((traderAgent.daily.realized + trade.pnl).toFixed(2));
+        traderAgent.daily.trades++;
+        if (trade.pnl > 0) traderAgent.daily.wins++;
+        else if (trade.pnl < 0) traderAgent.daily.losses++;
+      }
+      this.positionTrader.delete(p.id);
       bus.emit(hitTp ? 'TAKE_PROFIT_TRIGGERED' : 'STOP_LOSS_TRIGGERED', trade);
       bus.emit('POSITION_CLOSED', trade);
       const trader = agents.pick('TRADER', Date.now());
@@ -474,6 +517,29 @@ export class SimulationEngine {
         );
       }
       this.positions = this.simBroker.mark();
+    }
+  }
+
+  /** Live mark-to-market shown on the desk of whoever owns each position. */
+  private monitorOwners() {
+    const open = new Map<string, { symbol: string; pnl: number }>();
+    for (const p of this.positions) {
+      if (!p.agentId) continue;
+      const cur = open.get(p.agentId);
+      open.set(p.agentId, { symbol: p.symbol, pnl: (cur?.pnl ?? 0) + p.pnl });
+    }
+    for (const a of agents.list()) {
+      const live = open.get(a.id);
+      a.openPnl = live ? Number(live.pnl.toFixed(2)) : 0;
+      a.openSymbol = live?.symbol;
+    }
+    if (Date.now() - this.lastMonitor < 1200) return;
+    this.lastMonitor = Date.now();
+    for (const [agentId, live] of open) {
+      const a = agents.get(agentId);
+      if (!a || a.busyUntil > Date.now()) continue;
+      agents.setState(agentId, 'WAITING', `Managing ${live.symbol} · ${fmtMoney(live.pnl)}`);
+      if (Math.random() < 0.12) agents.setActivity(agentId, Math.random() < 0.5 ? 'TYPING' : 'POINTING', 3000);
     }
   }
 
@@ -719,6 +785,9 @@ export class SimulationEngine {
 
   resetDay() {
     this.simBroker.reset();
+    this.positionTrader.clear();
+    this.cooldown.clear();
+    agents.resetDaily();
     this.closed = [];
     this.opportunities.clear();
     this.positions = [];
@@ -785,6 +854,8 @@ export class SimulationEngine {
     };
   }
 }
+
+export const fmtMoney = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
 
 function randomSmallTalk(role: AgentRole) {
   const lines: Record<string, string[]> = {

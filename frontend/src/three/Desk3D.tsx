@@ -6,6 +6,8 @@ import type { Agent, Desk } from '../types';
 import { getScreen, type ScreenKind } from './screens';
 import { Agent3D } from './Agent3D';
 import { STATE_COLOR } from '../lib/format';
+
+const money = (v: number) => `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`;
 import { useStore } from '../state/store';
 
 const DESK_H = 0.74;
@@ -216,16 +218,38 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
         style={{ pointerEvents: 'none' }}
       >
         <div
-          className="whitespace-nowrap rounded-[4px] border px-2 py-[3px] text-[9px] font-semibold uppercase tracking-[0.14em] backdrop-blur-sm"
+          className="min-w-[132px] whitespace-nowrap rounded-[4px] border px-2 py-[3px] backdrop-blur-sm"
           style={{
             borderColor: `${color}55`,
-            background: 'rgba(5,8,13,0.78)',
-            color,
+            background: 'rgba(5,8,13,0.82)',
             boxShadow: focused ? `0 0 18px ${color}66` : 'none',
           }}
         >
-          {agent ? `${agent.name} · ${agent.symbol ?? desk.label}` : `${desk.label} · vacant`}
-          {agent && <span className="ml-2 text-slate-400">{agent.state}</span>}
+          <div className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color }}>
+            {agent ? `${agent.name} · ${agent.symbol ?? desk.label}` : `${desk.label} · vacant`}
+            {agent && <span className="ml-2 text-slate-400">{agent.state}</span>}
+          </div>
+          {agent && (
+            <div className="flex items-center justify-between gap-2 font-mono text-[9px] leading-tight">
+              {agent.openSymbol ? (
+                <span style={{ color: agent.openPnl >= 0 ? '#4ade80' : '#f05252' }}>
+                  ● LIVE {agent.openSymbol} {money(agent.openPnl)}
+                </span>
+              ) : (
+                <span className="text-slate-500">no open entry</span>
+              )}
+              <span
+                className="rounded px-1"
+                style={{
+                  color: (agent.daily?.realized ?? 0) >= 0 ? '#86efac' : '#fca5a5',
+                  background: (agent.daily?.realized ?? 0) >= 0 ? 'rgba(74,222,128,0.12)' : 'rgba(240,82,82,0.14)',
+                }}
+                title="Realised result of the day for this agent"
+              >
+                DAY {money(agent.daily?.realized ?? 0)} · {agent.daily?.trades ?? 0}t
+              </span>
+            </div>
+          )}
         </div>
       </Html>
     </group>

@@ -73,6 +73,28 @@ export function AgentInspector({ onOpenChart }: { onOpenChart: (symbol: string) 
         </span>
       </div>
 
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="rounded border border-white/8 bg-black/30 px-2 py-1.5">
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-500">Open entry</div>
+          {agent.openSymbol ? (
+            <div className="mono text-[13px]" style={{ color: agent.openPnl >= 0 ? '#4ade80' : '#f05252' }}>
+              {agent.openSymbol} {agent.openPnl >= 0 ? '+' : '-'}${Math.abs(agent.openPnl).toFixed(2)}
+            </div>
+          ) : (
+            <div className="mono text-[13px] text-slate-500">flat</div>
+          )}
+        </div>
+        <div className="rounded border border-white/8 bg-black/30 px-2 py-1.5">
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-500">Day result</div>
+          <div className="mono text-[13px]" style={{ color: (agent.daily?.realized ?? 0) >= 0 ? '#86efac' : '#fca5a5' }}>
+            {(agent.daily?.realized ?? 0) >= 0 ? '+' : '-'}${Math.abs(agent.daily?.realized ?? 0).toFixed(2)}
+            <span className="ml-1 text-[9px] text-slate-500">
+              {agent.daily?.wins ?? 0}W/{agent.daily?.losses ?? 0}L
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-2 grid grid-cols-4 gap-2 border-y border-white/5 py-2 text-center">
         {[
           ['Analyses', agent.stats.analyses],

@@ -11,7 +11,41 @@ trader executando ordens.
 
 ---
 
-## 1. Como rodar
+## 0. Instalação em 1 comando (Windows)
+
+Abra o **PowerShell** (ou CMD) e cole:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1 | iex"
+```
+
+Versão curta, já dentro do PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1 | iex
+```
+
+O instalador puxa **somente a branch `arena/8d46e70a-axecapital`** (nada de merge na `main`) e:
+
+1. instala Git, Node.js LTS e Python via `winget` se faltarem;
+2. clona a branch em `%USERPROFILE%\AxeCapital` (ou atualiza se já existir);
+3. instala as dependências do engine e da interface e compila tudo;
+4. instala os requisitos da ponte MetaTrader 5;
+5. cria o atalho **“Axe Capital”** na área de trabalho + `Start-AxeCapital.cmd`;
+6. sobe a ponte MT5 (se houver Python), o engine em `http://localhost:8787` e abre o navegador.
+
+Parâmetros opcionais (ex.: outra pasta, sem abrir no fim):
+
+```powershell
+$s = irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1
+iex "& { $s } -InstallDir 'D:\Axe' -SkipBridge -NoLaunch"
+```
+
+Depois da instalação, o `Start-AxeCapital.cmd` (ou `scripts\start.ps1 -Dev`) é o único comando necessário para abrir o escritório.
+
+---
+
+## 1. Como rodar (manual / Linux / macOS)
 
 ```bash
 # 1. dependências
@@ -52,6 +86,8 @@ npm run build && npm start   # o engine serve o frontend compilado
 | Motor de mercado simulado (ticks, candles, spreads, regimes, choques, notícias) | ✅ |
 | Event bus + pipeline Scout → Technical → Macro → Quant → Risk → Portfolio → Trader → Execution | ✅ |
 | Risk Manager com poder de veto (exposição, correlação, evento macro próximo, volatilidade, drawdown) | ✅ |
+| **Uma entrada por ativo/agente**: enquanto a posição está aberta, o dono acompanha em tempo real e não abre outra | ✅ |
+| **Resultado diário por agente exibido na própria mesa** (P&L aberto ao vivo + realizado do dia, W/L) | ✅ |
 | Journal de trades, posições abertas, HUD de conta, P&L, win rate, exposição | ✅ |
 | Comunicação entre agentes (chat da mesa em tempo real) | ✅ |
 | Câmera cinematográfica que segue a oportunidade de mesa em mesa + órbita/zoom/pan manual | ✅ |
@@ -166,7 +202,20 @@ Regimes de mercado: `TRENDING · RANGING · HIGH_VOLATILITY · LOW_VOLATILITY ·
 
 ---
 
-## 7. Próximos passos sugeridos
+## 7. Regra de uma entrada por agente
+
+* Cada **Market Scout** é dono do seu instrumento. Ao detectar um setup, ele leva a ideia pelo pipeline e, se aprovada, **a posição fica no nome dele** (`position.agentId`).
+* Enquanto essa posição estiver aberta, aquele agente **não gera nenhuma nova entrada** — nem no mesmo ativo por outro agente (`maybeScan` bloqueia por `agentId` e por `symbol`).
+* Durante a operação ele entra em estado `WAITING` e a mesa mostra, atualizando a cada ~1,2s:
+  `● LIVE EURUSD +$42.80` (marcação a mercado do que ele está gerindo).
+* Quando o SL/TP dispara, o engine credita o resultado no agente (`AgentRegistry.settle`) e a plaquinha da mesa passa a mostrar o **resultado total do dia**:
+  `DAY +$1,379.40 · 3t`, em verde se positivo e vermelho se negativo — com `W/L` detalhado no *Agent inspector*.
+* A câmera vai até a mesa dele no momento do fechamento e ele comenta o resultado no chat da mesa.
+* **Reset day** zera os resultados diários de todos os agentes.
+
+---
+
+## 8. Próximos passos sugeridos
 
 1. Estratégias plugáveis por agente (`Strategy` já é uma interface) + backtesting.
 2. Persistência do journal (SQLite) e relatórios por agente.

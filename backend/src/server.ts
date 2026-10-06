@@ -185,6 +185,9 @@ setInterval(() => {
       statusLine: a.statusLine,
       activity: a.activity,
       stats: a.stats,
+      daily: a.daily,
+      openPnl: a.openPnl,
+      openSymbol: a.openSymbol,
       symbol: a.symbol,
     })),
   };

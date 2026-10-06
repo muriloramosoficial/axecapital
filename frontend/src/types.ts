@@ -50,6 +50,9 @@ export interface Agent {
   state: AgentState;
   statusLine: string;
   stats: { analyses: number; approvals: number; rejections: number; trades: number };
+  daily: { realized: number; trades: number; wins: number; losses: number };
+  openPnl: number;
+  openSymbol?: string;
   config: { aggressiveness: number; maxRiskPct: number; useAI: boolean };
   avatar: { skin: string; shirt: string; hair: string; build: number };
   activity: string;
@@ -88,6 +91,7 @@ export interface Opportunity {
   takeProfit?: number;
   lots?: number;
   rejectionReason?: string;
+  ownerAgentId?: string;
   agentTrail: { role: AgentRole; agentId: string; at: number }[];
   aiAssisted?: boolean;
 }
