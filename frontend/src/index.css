@@ -11,8 +11,8 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: #04060a;
-  color: #dbe4ef;
+  background: #8e9bad;
+  color: #e4ebf4;
   font-family: Inter, system-ui, sans-serif;
   overflow: hidden;
 }
@@ -31,10 +31,10 @@ body,
 
 @layer components {
   .glass {
-    @apply border border-white/[0.06] bg-[#070b11]/80 backdrop-blur-xl shadow-panel;
+    @apply border border-white/[0.09] bg-[#0b1119]/90 backdrop-blur-xl shadow-panel;
   }
   .panel-title {
-    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400;
+    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-300;
   }
   .chip {
     @apply rounded border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider;
@@ -95,4 +95,16 @@ body,
 }
 .slide-in {
   animation: slideIn 0.25s ease-out;
+}
+
+/* ── broadcast friendly: fluid type on very large / very small canvases ── */
+@media (min-width: 2200px) {
+  html {
+    font-size: 18px;
+  }
+}
+@media (max-width: 1100px) {
+  html {
+    font-size: 15px;
+  }
 }

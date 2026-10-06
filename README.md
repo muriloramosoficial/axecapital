@@ -62,6 +62,22 @@ iex "& { $s } -InstallDir 'D:\Axe' -SkipBridge -NoLaunch"
 
 Depois da instalação, o `Start-AxeCapital.cmd` (ou `scripts\start.ps1 -Dev`) é o único comando necessário para abrir o escritório.
 
+### Erro “npm.ps1 não está assinado digitalmente”
+
+Em máquinas com `ExecutionPolicy` = `AllSigned`/`Restricted` o PowerShell recusa carregar o
+`npm.ps1` que acompanha o Node.js. O instalador já contorna isso de duas formas:
+
+* libera `Bypass` **apenas para o processo atual** (`Set-ExecutionPolicy -Scope Process`) — nada
+  é alterado permanentemente na máquina;
+* e, mesmo assim, chama o npm sempre por `cmd.exe /c npm …` (usa `npm.cmd`, que não passa por
+  política de execução).
+
+Se mesmo assim a política da empresa bloquear o próprio script, use a forma longa:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/muriloramosoficial/axecapital/refs/heads/arena/8d46e70a-axecapital/scripts/install.ps1 | iex"
+```
+
 ---
 
 ## 1. Como rodar (manual / Linux / macOS)
@@ -324,7 +340,41 @@ de todos os cérebros (amostras, win rate, expectancy, P&L aprendido).
 
 ---
 
-## 10. Próximos passos sugeridos
+## 10. Modo transmissão (live 24h no YouTube)
+
+O escritório foi ajustado para ficar bonito numa captura de janela/navegador o dia inteiro:
+
+* **iluminação diurna** — piso de concreto claro, paredes claras, janelas com luz natural e
+  bloom suave; as telas continuam escuras e legíveis por contraste;
+* **agentes em traje formal** — paletó com lapela, camisa, gravata, crachá, óculos/headset
+  (trader e scout) e variações determinísticas por agente;
+* **plaquinha de mesa clara** com nome, ativo, estado, operação aberta e resultado do dia.
+
+### Esconder / mostrar a HUD
+
+No canto superior direito existe uma barrinha sempre disponível com três modos:
+
+| Modo | O que aparece | Para quê |
+| --- | --- | --- |
+| **Completo** `▦` | HUD, pipeline, news, inspector, comms, journal, barra de controles | operar e configurar |
+| **Transmissão** `◉` | só a HUD de conta no topo + ticker de preços embaixo | live no YouTube |
+| **Limpo** `⬚` | apenas o escritório 3D | cenas cinematográficas |
+
+Atalhos de teclado: **H** alterna o modo · **[** e **]** diminuem/aumentam a escala da
+interface (70%–140%, útil em 1080p/4K) · **F** entra e sai de tela cheia. O modo escolhido e a
+escala ficam salvos no navegador (`axe.hudMode`, `axe.uiScale`), então um reinício do PC volta
+com o mesmo enquadramento.
+
+### Layout responsivo
+
+As colunas laterais usam larguras fluidas (`clamp`), somem automaticamente em telas estreitas
+(a da direita abaixo de 1280px, a da esquerda abaixo de 1024px), a HUD do topo rola na
+horizontal quando falta espaço e o gráfico TradingView flutuante se adapta à viewport — nada
+mais se sobrepõe em 1366×768, 1920×1080 ou 2560×1440.
+
+---
+
+## 11. Próximos passos sugeridos
 
 1. Estratégias plugáveis por agente (`Strategy` já é uma interface) + backtesting sobre as lições gravadas.
 2. Persistência do journal (SQLite) e relatórios por agente.

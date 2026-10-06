@@ -84,10 +84,10 @@ function SignalBeam() {
   if (!points || !pair || performance.now() - pair.at > 2600) return null;
   return (
     <group>
-      <Line points={points} color="#5eead4" lineWidth={1.1} transparent opacity={0.22} />
+      <Line points={points} color="#0e9f8a" lineWidth={1.4} transparent opacity={0.4} />
       <mesh ref={bead}>
         <sphereGeometry args={[0.09, 12, 12]} />
-        <meshBasicMaterial color="#7dffd7" transparent toneMapped={false} />
+        <meshBasicMaterial color="#0fbf9f" transparent toneMapped={false} />
       </mesh>
     </group>
   );
@@ -116,18 +116,20 @@ export function Scene() {
       camera={{ position: [0, 17.5, 27], fov: 38, near: 0.5, far: 180 }}
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.05;
-        scene.fog = new THREE.Fog('#04060a', 34, 96);
+        gl.toneMappingExposure = 1.02;
+        scene.fog = new THREE.Fog('#aab6c6', 58, 150);
       }}
     >
-      <color attach="background" args={['#04060a']} />
-      <ambientLight intensity={0.22} color="#5b7fa6" />
-      <hemisphereLight intensity={0.25} color="#2a4a6a" groundColor="#05070a" />
-      <directionalLight position={[8, 14, 10]} intensity={0.35} color="#9fc6ff" />
-      <pointLight position={[0, 5.2, -10]} intensity={28} distance={30} color="#2f6fa8" />
-      <pointLight position={[-14, 4.2, 4]} intensity={14} distance={22} color="#1d4e6e" />
-      <pointLight position={[14, 4.2, 4]} intensity={14} distance={22} color="#1d4e6e" />
-      <pointLight position={[0, 4.4, 8]} intensity={16} distance={20} color="#2a6b5a" />
+      <color attach="background" args={['#9fadbf']} />
+      {/* daylight office: soft, even and bright — reads well on a 24/7 stream */}
+      <ambientLight intensity={0.72} color="#eef3fb" />
+      <hemisphereLight intensity={0.6} color="#ffffff" groundColor="#97a2b1" />
+      <directionalLight position={[10, 18, 12]} intensity={0.95} color="#fff6ea" />
+      <directionalLight position={[-12, 14, 6]} intensity={0.4} color="#cfe3ff" />
+      <pointLight position={[0, 5.4, -10]} intensity={18} distance={34} color="#dceaff" />
+      <pointLight position={[-14, 4.6, 4]} intensity={11} distance={26} color="#fff1dd" />
+      <pointLight position={[14, 4.6, 4]} intensity={11} distance={26} color="#fff1dd" />
+      <pointLight position={[0, 4.6, 8]} intensity={10} distance={24} color="#eaf4ff" />
 
       <Suspense fallback={null}>
         <Office />
@@ -149,8 +151,8 @@ export function Scene() {
       />
       <AdaptiveDpr pixelated />
       <EffectComposer multisampling={0}>
-        <Bloom intensity={0.75} luminanceThreshold={0.28} luminanceSmoothing={0.3} mipmapBlur radius={0.72} />
-        <Vignette eskil={false} offset={0.22} darkness={0.85} />
+        <Bloom intensity={0.32} luminanceThreshold={0.72} luminanceSmoothing={0.26} mipmapBlur radius={0.55} />
+        <Vignette eskil={false} offset={0.32} darkness={0.42} />
       </EffectComposer>
     </Canvas>
   );

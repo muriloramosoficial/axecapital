@@ -15,7 +15,7 @@ export default {
         amber: '#f5a524',
       },
       boxShadow: {
-        panel: '0 18px 50px -20px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.04)',
+        panel: '0 20px 55px -22px rgba(2,8,20,0.85), 0 2px 10px -4px rgba(2,8,20,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
       },
     },
   },

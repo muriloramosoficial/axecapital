@@ -25,12 +25,35 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+# Em máquinas com ExecutionPolicy AllSigned/Restricted o PowerShell se recusa a
+# carregar npm.ps1 (que vem sem assinatura digital). Liberamos só para ESTE
+# processo — nada é alterado permanentemente na máquina — e, mesmo assim, todas
+# as chamadas de npm são feitas via cmd.exe (npm.cmd), que não passa por policy.
+try { Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Stop } catch { }
+
 function Say($msg, $color = 'Gray') { Write-Host "  $msg" -ForegroundColor $color }
 function Step($msg) { Write-Host "`n▸ $msg" -ForegroundColor Cyan }
 function Ok($msg) { Write-Host "  ✓ $msg" -ForegroundColor Green }
 function Warn($msg) { Write-Host "  ! $msg" -ForegroundColor Yellow }
 function Fail($msg) { Write-Host "`n  ✕ $msg" -ForegroundColor Red; exit 1 }
 function Have($cmd) { return [bool](Get-Command $cmd -ErrorAction SilentlyContinue) }
+
+$script:CmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
+if (-not (Test-Path $script:CmdExe)) { $script:CmdExe = 'cmd.exe' }
+
+# npm SEMPRE através do cmd.exe → usa npm.cmd e nunca npm.ps1.
+# Funções sem bloco param() para que tokens como --prefix caiam todos em $args.
+function Npm {
+    & $script:CmdExe '/d' '/c' 'npm' @args
+    if ($LASTEXITCODE -ne 0) { Fail "falha ao executar: npm $($args -join ' ')  (código $LASTEXITCODE)" }
+}
+function NpmOut {
+    return (& $script:CmdExe '/d' '/c' 'npm' @args 2>$null | Select-Object -First 1)
+}
+function Have-Npm {
+    if (NpmOut '-v') { return $true }
+    return $false
+}
 
 Write-Host @"
 
@@ -77,9 +100,10 @@ function Backup-UserConfig($dir) {
 Step 'Verificando pré-requisitos'
 Ensure-Tool 'git'  'Git.Git'            'Git'
 Ensure-Tool 'node' 'OpenJS.NodeJS.LTS'  'Node.js'
-if (-not (Have 'npm')) { Refresh-Path }
-if (-not (Have 'npm')) { Fail 'npm não encontrado no PATH.' }
-Ok "node $(node -v) · npm $(npm -v)"
+if (-not (Have-Npm)) { Refresh-Path }
+$npmVersion = NpmOut '-v'
+if (-not $npmVersion) { Fail 'npm não encontrado no PATH. Feche e reabra o terminal (ou reinstale o Node.js LTS) e rode de novo.' }
+Ok "node $(node -v) · npm $npmVersion"
 
 # ───────────────────────────────────── código fonte (instalar/atualizar) ──
 $isUpdate = Test-Path (Join-Path $InstallDir '.git')
@@ -136,8 +160,8 @@ $needBuild        = $Force -or $codeChanged -or -not (Test-Path 'backend\dist\se
 
 if ($needBackendDeps -or $needFrontendDeps) {
     Step 'Instalando dependências'
-    if ($needBackendDeps)  { npm install --prefix backend  --no-audit --no-fund --loglevel=error }
-    if ($needFrontendDeps) { npm install --prefix frontend --no-audit --no-fund --loglevel=error }
+    if ($needBackendDeps)  { Npm install --prefix backend  --no-audit --no-fund --loglevel=error }
+    if ($needFrontendDeps) { Npm install --prefix frontend --no-audit --no-fund --loglevel=error }
     Ok 'pacotes npm em dia'
 } else {
     Ok 'dependências já instaladas'
@@ -145,8 +169,8 @@ if ($needBackendDeps -or $needFrontendDeps) {
 
 if ($needBuild) {
     Step 'Compilando'
-    npm run build --prefix backend  --loglevel=error
-    npm run build --prefix frontend --loglevel=error
+    Npm run build --prefix backend  --loglevel=error
+    Npm run build --prefix frontend --loglevel=error
     Ok 'build concluído'
 } else {
     Ok 'build já está atualizado'

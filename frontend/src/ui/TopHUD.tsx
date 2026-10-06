@@ -1,9 +1,22 @@
 import { useStore } from '../state/store';
 import { countdown, money, signed } from '../lib/format';
 
-function Stat({ label, value, tone = 'text-slate-100', sub }: { label: string; value: string; tone?: string; sub?: string }) {
+function Stat({
+  label,
+  value,
+  tone = 'text-slate-100',
+  sub,
+  hideBelow,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  sub?: string;
+  hideBelow?: 'lg' | 'xl';
+}) {
+  const vis = hideBelow === 'lg' ? 'hidden lg:block' : hideBelow === 'xl' ? 'hidden xl:block' : '';
   return (
-    <div className="min-w-[86px] px-3 py-1">
+    <div className={`min-w-[78px] shrink-0 px-3 py-1 ${vis}`}>
       <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</div>
       <div className={`mono text-[15px] font-semibold leading-tight ${tone}`}>{value}</div>
       {sub && <div className="text-[9px] text-slate-500">{sub}</div>}
@@ -25,8 +38,8 @@ export function TopHUD({
   const live = config.executionMode === 'MT5_LIVE' && mt5Connected;
 
   return (
-    <div className="pointer-events-auto flex items-stretch gap-2">
-      <div className="glass flex items-center rounded-lg px-3 py-1.5">
+    <div className="pointer-events-auto flex items-stretch gap-2 pr-[200px]">
+      <div className="glass flex shrink-0 items-center rounded-lg px-3 py-1.5">
         <div className="pr-3">
           <div className="text-[15px] font-bold tracking-[0.26em] text-slate-100">AXE CAPITAL</div>
           <div className="text-[9px] uppercase tracking-[0.2em] text-slate-500">Autonomous FX Desk</div>
@@ -52,13 +65,13 @@ export function TopHUD({
         </div>
       </div>
 
-      <div className="glass flex flex-1 items-center justify-between rounded-lg">
-        <div className="flex items-center divide-x divide-white/5">
+      <div className="glass flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg">
+        <div className="flex min-w-0 items-center divide-x divide-white/5 overflow-x-auto">
           <Stat label="Balance" value={money(account?.balance ?? 0)} />
           <Stat label="Equity" value={money(account?.equity ?? 0)} />
           <Stat label="Day P&L" value={signed(pnl)} tone={pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'} />
           <Stat label="Open" value={String(account?.openPositions ?? 0)} sub="positions" />
-          <Stat label="Trades" value={String(account?.tradesToday ?? 0)} sub="today" />
+          <Stat label="Trades" value={String(account?.tradesToday ?? 0)} sub="today" hideBelow="lg" />
           <Stat label="Win rate" value={`${account?.winRate ?? 0}%`} tone="text-sky-300" />
           <Stat
             label="Risk"
@@ -66,9 +79,9 @@ export function TopHUD({
             tone={account?.riskLevel === 'LOW' ? 'text-emerald-300' : account?.riskLevel === 'HIGH' ? 'text-rose-300' : 'text-amber-300'}
             sub={`exposure ${account?.exposurePct?.toFixed(1) ?? '0.0'}%`}
           />
-          <Stat label="Staff" value={String(agents.length)} sub="agents on floor" />
+          <Stat label="Staff" value={String(agents.length)} sub="agents on floor" hideBelow="xl" />
         </div>
-        <div className="flex items-center gap-2 px-3">
+        <div className="flex shrink-0 items-center gap-2 px-3">
           {nextNews && (
             <div className="flex items-center gap-2 rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1">
               <span className="text-[11px]">⚠</span>

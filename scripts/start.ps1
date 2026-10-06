@@ -14,6 +14,12 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+try { Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction Stop } catch { }
+
+$script:CmdExe = Join-Path $env:SystemRoot 'System32\cmd.exe'
+if (-not (Test-Path $script:CmdExe)) { $script:CmdExe = 'cmd.exe' }
+# npm via cmd.exe: evita o bloqueio de npm.ps1 em máquinas com ExecutionPolicy restrita
+function Npm { & $script:CmdExe '/d' '/c' 'npm' @args }
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
@@ -52,14 +58,14 @@ $env:MT5_BRIDGE_URL = "http://127.0.0.1:$BridgePort"
 if ($Dev) {
     Write-Host "  ▸ modo desenvolvimento (vite + tsx watch)" -ForegroundColor Cyan
     if (-not $NoBrowser) { Start-Process 'http://localhost:5173' }
-    npm run dev
+    Npm run dev
     return
 }
 
 if (-not (Test-Path (Join-Path $root 'backend\dist\server.js'))) {
     Write-Host "  ▸ build ausente, compilando…" -ForegroundColor Cyan
-    npm run build --prefix backend  --loglevel=error
-    npm run build --prefix frontend --loglevel=error
+    Npm run build --prefix backend  --loglevel=error
+    Npm run build --prefix frontend --loglevel=error
 }
 
 if (-not $NoBrowser) {

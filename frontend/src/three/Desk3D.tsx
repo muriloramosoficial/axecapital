@@ -79,8 +79,8 @@ function Monitor({
     <group position={pos} rotation={[0, rotY, 0]}>
       {/* bezel */}
       <mesh castShadow>
-        <boxGeometry args={[w + 0.035, h + 0.035, 0.022]} />
-        <meshStandardMaterial color="#0a0d12" roughness={0.45} metalness={0.5} />
+        <boxGeometry args={[w + 0.03, h + 0.03, 0.02]} />
+        <meshStandardMaterial color="#20262e" roughness={0.38} metalness={0.5} />
       </mesh>
       {/* screen */}
       <mesh position={[0, 0, 0.013]}>
@@ -98,11 +98,11 @@ function Monitor({
       {/* stand */}
       <mesh position={[0, -h / 2 - 0.13, -0.02]}>
         <cylinderGeometry args={[0.016, 0.02, 0.26, 10]} />
-        <meshStandardMaterial color="#1b232e" metalness={0.8} roughness={0.35} />
+        <meshStandardMaterial color="#b8bfc7" metalness={0.85} roughness={0.3} />
       </mesh>
       <mesh position={[0, -h / 2 - 0.26, -0.02]}>
-        <boxGeometry args={[0.2, 0.012, 0.14]} />
-        <meshStandardMaterial color="#141a22" metalness={0.7} roughness={0.4} />
+        <boxGeometry args={[0.22, 0.014, 0.15]} />
+        <meshStandardMaterial color="#aab2bb" metalness={0.8} roughness={0.35} />
       </mesh>
     </group>
   );
@@ -112,23 +112,23 @@ function Chair({ occupied }: { occupied: boolean }) {
   return (
     <group position={[0, 0, 0.95]} rotation={[0, occupied ? 0 : 0.5, 0]}>
       <mesh position={[0, 0.45, 0]} castShadow>
-        <boxGeometry args={[0.52, 0.07, 0.5]} />
-        <meshStandardMaterial color="#12171f" roughness={0.9} />
+        <boxGeometry args={[0.52, 0.08, 0.5]} />
+        <meshStandardMaterial color="#39414d" roughness={0.85} />
       </mesh>
       <mesh position={[0, 0.76, 0.24]} rotation={[0.16, 0, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.58, 0.07]} />
-        <meshStandardMaterial color="#141a23" roughness={0.9} />
+        <boxGeometry args={[0.5, 0.6, 0.07]} />
+        <meshStandardMaterial color="#424b58" roughness={0.85} />
       </mesh>
       <mesh position={[0, 0.22, 0]}>
         <cylinderGeometry args={[0.045, 0.045, 0.42, 10]} />
-        <meshStandardMaterial color="#20262f" metalness={0.8} roughness={0.3} />
+        <meshStandardMaterial color="#c2c8d0" metalness={0.85} roughness={0.28} />
       </mesh>
       {[0, 1, 2, 3, 4].map((i) => {
         const a = (i / 5) * Math.PI * 2;
         return (
           <mesh key={i} position={[Math.cos(a) * 0.24, 0.04, Math.sin(a) * 0.24]} rotation={[0, -a, 0]}>
             <boxGeometry args={[0.3, 0.035, 0.05]} />
-            <meshStandardMaterial color="#1a1f27" metalness={0.6} roughness={0.5} />
+            <meshStandardMaterial color="#9aa2ac" metalness={0.7} roughness={0.42} />
           </mesh>
         );
       })}
@@ -141,7 +141,7 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
   const monitors = useMemo(() => monitorLayout(plan.length, desk.width), [plan.length, desk.width]);
   const strip = useRef<THREE.MeshBasicMaterial>(null);
   const focus = useStore((s) => s.focus);
-  const color = agent ? STATE_COLOR[agent.state] ?? '#64748b' : '#223042';
+  const color = agent ? STATE_COLOR[agent.state] ?? '#64748b' : '#94a3b8';
   const focused = focus?.deskId === desk.id;
 
   useFrame((s) => {
@@ -155,23 +155,23 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
     <group position={[desk.x, 0, desk.z]} rotation={[0, desk.rot, 0]} onClick={() => agent && onSelect(agent.id)}>
       {/* desktop */}
       <mesh position={[0, DESK_H, 0]} castShadow receiveShadow>
-        <boxGeometry args={[desk.width, 0.055, desk.depth]} />
-        <meshStandardMaterial color="#10141b" roughness={0.42} metalness={0.25} />
+        <boxGeometry args={[desk.width, 0.058, desk.depth]} />
+        <meshStandardMaterial color="#d9cdb8" roughness={0.55} metalness={0.05} />
       </mesh>
       {/* desk edge light strip */}
       <mesh position={[0, DESK_H - 0.04, desk.depth / 2 + 0.001]}>
-        <planeGeometry args={[desk.width * 0.96, 0.018]} />
+        <planeGeometry args={[desk.width * 0.96, 0.024]} />
         <meshBasicMaterial ref={strip} color={color} transparent opacity={0.3} toneMapped={false} />
       </mesh>
       {/* modesty panel + legs */}
       <mesh position={[0, 0.38, -desk.depth / 2 + 0.06]}>
         <boxGeometry args={[desk.width * 0.98, 0.66, 0.03]} />
-        <meshStandardMaterial color="#0b0f15" roughness={0.9} />
+        <meshStandardMaterial color="#eceef1" roughness={0.8} />
       </mesh>
       {[-1, 1].map((s) => (
         <mesh key={s} position={[(s * desk.width) / 2 - s * 0.1, 0.37, 0]}>
           <boxGeometry args={[0.07, 0.72, desk.depth * 0.92]} />
-          <meshStandardMaterial color="#161c25" metalness={0.65} roughness={0.42} />
+          <meshStandardMaterial color="#b4bbc4" metalness={0.72} roughness={0.36} />
         </mesh>
       ))}
 
@@ -182,27 +182,27 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
       {/* keyboard + mouse + mug + phone + papers */}
       <mesh position={[0, DESK_H + 0.035, 0.18]} rotation={[0, 0, 0]}>
         <boxGeometry args={[0.46, 0.016, 0.15]} />
-        <meshStandardMaterial color="#0c1016" roughness={0.6} />
+        <meshStandardMaterial color="#2a2f37" roughness={0.55} />
       </mesh>
       <mesh position={[0, DESK_H + 0.045, 0.18]}>
         <planeGeometry args={[0.44, 0.13]} />
-        <meshBasicMaterial color="#1b4b6b" transparent opacity={0.35} toneMapped={false} />
+        <meshBasicMaterial color="#8fb6cf" transparent opacity={0.45} toneMapped={false} />
       </mesh>
       <mesh position={[0.34, DESK_H + 0.04, 0.2]}>
         <sphereGeometry args={[0.035, 10, 8]} />
-        <meshStandardMaterial color="#121821" roughness={0.5} />
+        <meshStandardMaterial color="#39404a" roughness={0.45} />
       </mesh>
       <mesh position={[-desk.width / 2 + 0.26, DESK_H + 0.08, 0.14]}>
         <cylinderGeometry args={[0.045, 0.04, 0.1, 12]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.6} />
+        <meshStandardMaterial color="#ffffff" roughness={0.45} />
       </mesh>
       <mesh position={[desk.width / 2 - 0.28, DESK_H + 0.05, -0.1]} rotation={[0, 0.4, 0]}>
         <boxGeometry args={[0.18, 0.05, 0.22]} />
-        <meshStandardMaterial color="#0e131a" roughness={0.7} />
+        <meshStandardMaterial color="#303742" roughness={0.6} />
       </mesh>
       <mesh position={[-desk.width / 2 + 0.55, DESK_H + 0.032, 0.26]} rotation={[-Math.PI / 2, 0, 0.3]}>
         <planeGeometry args={[0.21, 0.29]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.95} />
+        <meshStandardMaterial color="#fbfcfd" roughness={0.95} />
       </mesh>
 
       <Chair occupied={!!agent} />
@@ -211,38 +211,47 @@ export function Desk3D({ desk, agent, onSelect }: { desk: Desk; agent?: Agent; o
       {focused && <pointLight position={[0, 1.9, 0.4]} intensity={6} distance={5} color="#8ec7ff" />}
 
       <Html
-        position={[0, DESK_H + 1.42, desk.depth / 2]}
+        position={[0, DESK_H + 1.46, desk.depth / 2]}
         center
         distanceFactor={11}
         zIndexRange={[20, 0]}
         style={{ pointerEvents: 'none' }}
       >
         <div
-          className="min-w-[132px] whitespace-nowrap rounded-[4px] border px-2 py-[3px] backdrop-blur-sm"
+          className="min-w-[150px] whitespace-nowrap rounded-md border bg-white/90 px-2 py-[4px] shadow-[0_8px_22px_-10px_rgba(15,23,42,0.55)] backdrop-blur-sm"
           style={{
-            borderColor: `${color}55`,
-            background: 'rgba(5,8,13,0.82)',
-            boxShadow: focused ? `0 0 18px ${color}66` : 'none',
+            borderColor: `${color}66`,
+            borderLeft: `3px solid ${color}`,
+            boxShadow: focused ? `0 0 22px ${color}55, 0 8px 22px -10px rgba(15,23,42,0.6)` : undefined,
           }}
         >
-          <div className="text-[9px] font-semibold uppercase tracking-[0.14em]" style={{ color }}>
-            {agent ? `${agent.name} · ${agent.symbol ?? desk.label}` : `${desk.label} · vacant`}
-            {agent && <span className="ml-2 text-slate-400">{agent.state}</span>}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-800">
+              {agent ? `${agent.name} · ${agent.symbol ?? desk.label}` : `${desk.label} · vacant`}
+            </span>
+            {agent && (
+              <span
+                className="rounded-[3px] px-1 text-[8px] font-bold uppercase tracking-[0.1em]"
+                style={{ color: '#fff', background: color }}
+              >
+                {agent.state}
+              </span>
+            )}
           </div>
           {agent && (
-            <div className="flex items-center justify-between gap-2 font-mono text-[9px] leading-tight">
+            <div className="mt-[2px] flex items-center justify-between gap-2 font-mono text-[9px] leading-tight">
               {agent.openSymbol ? (
-                <span style={{ color: agent.openPnl >= 0 ? '#4ade80' : '#f05252' }}>
+                <span style={{ color: agent.openPnl >= 0 ? '#047857' : '#b91c1c' }}>
                   ● LIVE {agent.openSymbol} {money(agent.openPnl)}
                 </span>
               ) : (
                 <span className="text-slate-500">slot free · ready</span>
               )}
               <span
-                className="rounded px-1"
+                className="rounded px-1 font-semibold"
                 style={{
-                  color: (agent.daily?.realized ?? 0) >= 0 ? '#86efac' : '#fca5a5',
-                  background: (agent.daily?.realized ?? 0) >= 0 ? 'rgba(74,222,128,0.12)' : 'rgba(240,82,82,0.14)',
+                  color: (agent.daily?.realized ?? 0) >= 0 ? '#065f46' : '#991b1b',
+                  background: (agent.daily?.realized ?? 0) >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
                 }}
                 title="Realised result of the day for this agent"
               >

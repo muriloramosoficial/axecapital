@@ -38,7 +38,7 @@ export function PipelinePanel() {
   const done = op?.stage === 'DONE';
 
   return (
-    <div className="glass flex flex-col gap-3 rounded-lg p-3">
+    <div className="glass flex max-h-[42vh] shrink-0 flex-col gap-3 overflow-y-auto rounded-lg p-3">
       <div className="flex items-center justify-between">
         <span className="panel-title">Analysis pipeline</span>
         {op && (

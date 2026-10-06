@@ -26,8 +26,8 @@ function WallScreen({
   return (
     <group position={position}>
       <mesh>
-        <boxGeometry args={[size[0] + 0.07, size[1] + 0.07, 0.07]} />
-        <meshStandardMaterial color="#070a0f" roughness={0.5} metalness={0.4} />
+        <boxGeometry args={[size[0] + 0.08, size[1] + 0.08, 0.07]} />
+        <meshStandardMaterial color="#1d2530" roughness={0.42} metalness={0.35} />
       </mesh>
       <mesh position={[0, 0, 0.04]}>
         <planeGeometry args={size} />
@@ -42,28 +42,28 @@ function CityWindow({ x, z, rotY, w = 7 }: { x: number; z: number; rotY: number;
     <group position={[x, 3.1, z]} rotation={[0, rotY, 0]}>
       <mesh>
         <planeGeometry args={[w, 3.4]} />
-        <meshBasicMaterial color="#0a1726" toneMapped={false} />
+        <meshBasicMaterial color="#cfe2f6" toneMapped={false} />
       </mesh>
       {Array.from({ length: 26 }).map((_, i) => {
         const bx = (Math.random() - 0.5) * w * 0.92;
-        const bh = 0.5 + Math.random() * 2.3;
+        const bh = 0.5 + Math.random() * 2.1;
         return (
           <mesh key={i} position={[bx, -1.7 + bh / 2, 0.02]}>
             <planeGeometry args={[0.28 + Math.random() * 0.3, bh]} />
-            <meshBasicMaterial color={new THREE.Color().setHSL(0.58, 0.5, 0.06 + Math.random() * 0.08)} toneMapped={false} />
+            <meshBasicMaterial color={new THREE.Color().setHSL(0.58, 0.12, 0.62 + Math.random() * 0.16)} toneMapped={false} />
           </mesh>
         );
       })}
-      {Array.from({ length: 60 }).map((_, i) => (
+      {Array.from({ length: 30 }).map((_, i) => (
         <mesh key={`l${i}`} position={[(Math.random() - 0.5) * w * 0.9, -1.6 + Math.random() * 2, 0.03]}>
-          <planeGeometry args={[0.05, 0.04]} />
-          <meshBasicMaterial color={Math.random() > 0.3 ? '#ffd9a0' : '#9ad4ff'} toneMapped={false} />
+          <planeGeometry args={[0.05, 0.05]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.55} toneMapped={false} />
         </mesh>
       ))}
       {/* frame */}
       <mesh position={[0, 0, 0.05]}>
-        <boxGeometry args={[w + 0.2, 3.6, 0.08]} />
-        <meshStandardMaterial color="#0c1119" roughness={0.6} metalness={0.5} wireframe />
+        <boxGeometry args={[w + 0.22, 3.62, 0.09]} />
+        <meshStandardMaterial color="#aeb7c2" roughness={0.42} metalness={0.45} wireframe />
       </mesh>
     </group>
   );
@@ -73,15 +73,15 @@ function Plant({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
       <mesh position={[0, 0.22, 0]}>
-        <cylinderGeometry args={[0.22, 0.17, 0.44, 12]} />
-        <meshStandardMaterial color="#121821" roughness={0.9} />
+        <cylinderGeometry args={[0.24, 0.18, 0.46, 14]} />
+        <meshStandardMaterial color="#e3e6ea" roughness={0.75} />
       </mesh>
       {Array.from({ length: 7 }).map((_, i) => {
         const a = (i / 7) * Math.PI * 2;
         return (
           <mesh key={i} position={[Math.cos(a) * 0.16, 0.72, Math.sin(a) * 0.16]} rotation={[Math.cos(a) * 0.5, a, Math.sin(a) * 0.5]}>
-            <coneGeometry args={[0.1, 0.72, 5]} />
-            <meshStandardMaterial color="#1d4432" roughness={0.9} />
+            <coneGeometry args={[0.11, 0.78, 6]} />
+            <meshStandardMaterial color="#2f7a52" roughness={0.78} />
           </mesh>
         );
       })}
@@ -101,19 +101,19 @@ function WallClock({ position, rotation }: { position: [number, number, number];
     <group position={position} rotation={rotation}>
       <mesh>
         <cylinderGeometry args={[0.34, 0.34, 0.05, 28]} />
-        <meshStandardMaterial color="#0d1117" roughness={0.6} metalness={0.4} />
+        <meshStandardMaterial color="#20293a" roughness={0.5} metalness={0.45} />
       </mesh>
       <mesh position={[0, 0.03, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.3, 28]} />
-        <meshBasicMaterial color="#0a0f16" />
+        <meshBasicMaterial color="#f6f8fa" />
       </mesh>
       <mesh ref={hand} position={[0, 0.04, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.02, 0.5]} />
-        <meshBasicMaterial color="#6ee7b7" toneMapped={false} />
+        <meshBasicMaterial color="#0f766e" toneMapped={false} />
       </mesh>
       <mesh ref={min} position={[0, 0.045, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[0.03, 0.34]} />
-        <meshBasicMaterial color="#94a3b8" toneMapped={false} />
+        <meshBasicMaterial color="#1f2937" toneMapped={false} />
       </mesh>
     </group>
   );
@@ -155,14 +155,14 @@ export function Office() {
           blur={[300, 90]}
           resolution={512}
           mixBlur={1}
-          mixStrength={26}
-          roughness={0.92}
+          mixStrength={7}
+          roughness={0.78}
           depthScale={1.1}
           minDepthThreshold={0.4}
           maxDepthThreshold={1.3}
-          color="#070a0f"
-          metalness={0.55}
-          mirror={0.35}
+          color="#c3c9d1"
+          metalness={0.18}
+          mirror={0.22}
         />
       </mesh>
 
@@ -170,39 +170,39 @@ export function Office() {
       {[-11, 11].map((x) => (
         <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.005, 1]}>
           <planeGeometry args={[9.5, 24]} />
-          <meshStandardMaterial color="#0a0e14" roughness={1} />
+          <meshStandardMaterial color="#8d99a8" roughness={1} />
         </mesh>
       ))}
 
       {/* ───────────────────────────── walls ───────────────────────────── */}
       <mesh position={[0, WALL_H / 2, BACK_Z]} receiveShadow>
         <planeGeometry args={[FLOOR_W, WALL_H]} />
-        <meshStandardMaterial color="#080b11" roughness={0.95} />
+        <meshStandardMaterial color="#e7eaef" roughness={0.95} />
       </mesh>
       <mesh position={[0, WALL_H / 2, 21]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[FLOOR_W, WALL_H]} />
-        <meshStandardMaterial color="#070a0f" roughness={0.95} />
+        <meshStandardMaterial color="#e2e6ec" roughness={0.95} />
       </mesh>
       <mesh position={[-FLOOR_W / 2, WALL_H / 2, 2]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[FLOOR_D, WALL_H]} />
-        <meshStandardMaterial color="#080b11" roughness={0.95} />
+        <meshStandardMaterial color="#e4e8ee" roughness={0.95} />
       </mesh>
       <mesh position={[FLOOR_W / 2, WALL_H / 2, 2]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[FLOOR_D, WALL_H]} />
-        <meshStandardMaterial color="#080b11" roughness={0.95} />
+        <meshStandardMaterial color="#e4e8ee" roughness={0.95} />
       </mesh>
       {/* ceiling */}
       <mesh position={[0, WALL_H, 2]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[FLOOR_W, FLOOR_D]} />
-        <meshStandardMaterial color="#05070b" roughness={1} />
+        <meshStandardMaterial color="#f2f4f7" roughness={1} />
       </mesh>
       {/* ceiling light strips */}
       {[-13, -6, 1, 8, 15].map((z) => (
         <group key={z}>
           {[-13, 0, 13].map((x) => (
             <mesh key={x} position={[x, WALL_H - 0.12, z]}>
-              <boxGeometry args={[9, 0.07, 0.22]} />
-              <meshBasicMaterial color="#2b4257" toneMapped={false} />
+              <boxGeometry args={[9, 0.07, 0.24]} />
+              <meshBasicMaterial color="#ffffff" toneMapped={false} />
             </mesh>
           ))}
         </group>
@@ -220,12 +220,12 @@ export function Office() {
       <group position={[0, 0, BACK_Z + 0.12]}>
         <mesh position={[0, 3.3, -0.02]}>
           <boxGeometry args={[26, 5.4, 0.12]} />
-          <meshStandardMaterial color="#060910" roughness={0.6} metalness={0.4} />
+          <meshStandardMaterial color="#222c39" roughness={0.55} metalness={0.3} />
         </mesh>
-        <Text position={[0, 5.72, 0.2]} fontSize={0.42} letterSpacing={0.36} color="#7dd3fc" anchorX="center" font={undefined}>
+        <Text position={[0, 5.72, 0.2]} fontSize={0.42} letterSpacing={0.36} color="#16283a" anchorX="center" font={undefined}>
           MARKET INTELLIGENCE
         </Text>
-        <Text position={[0, 0.62, 0.2]} fontSize={0.2} letterSpacing={0.3} color="#334155" anchorX="center">
+        <Text position={[0, 0.62, 0.2]} fontSize={0.2} letterSpacing={0.3} color="#8c98a6" anchorX="center">
           AXE CAPITAL · AUTONOMOUS FX DESK · SIMULATION ENVIRONMENT
         </Text>
 
@@ -266,10 +266,10 @@ export function Office() {
         { t: 'EXECUTION', x: 0, z: 11.6, rot: 0 },
       ].map((s) => (
         <group key={s.t}>
-          <Text position={[s.x, 0.03, s.z]} rotation={[-Math.PI / 2, 0, -s.rot]} fontSize={0.34} letterSpacing={0.34} color="#16293a" anchorX="center">
+          <Text position={[s.x, 0.03, s.z]} rotation={[-Math.PI / 2, 0, -s.rot]} fontSize={0.34} letterSpacing={0.34} color="#9aa5b2" anchorX="center">
             {s.t}
           </Text>
-          <Text position={[s.x, 2.9, s.z]} rotation={[0, s.rot, 0]} fontSize={0.22} letterSpacing={0.3} color="#2b4a63" anchorX="center">
+          <Text position={[s.x, 2.9, s.z]} rotation={[0, s.rot, 0]} fontSize={0.22} letterSpacing={0.3} color="#5a6a7b" anchorX="center">
             {s.t}
           </Text>
         </group>
@@ -279,12 +279,12 @@ export function Office() {
       <group position={[-22.7, 2.6, 3.4]} rotation={[0, Math.PI / 2, 0]}>
         <mesh>
           <planeGeometry args={[4.2, 2.1]} />
-          <meshStandardMaterial color="#0e141c" roughness={0.8} />
+          <meshStandardMaterial color="#fafbfc" roughness={0.6} />
         </mesh>
         {Array.from({ length: 9 }).map((_, i) => (
           <mesh key={i} position={[-1.6 + (i % 3) * 1.4, 0.6 - Math.floor(i / 3) * 0.6, 0.01]}>
             <planeGeometry args={[1.0 + Math.random() * 0.2, 0.05]} />
-            <meshBasicMaterial color={i % 4 === 0 ? '#4ade80' : '#2b4a63'} toneMapped={false} />
+            <meshBasicMaterial color={i % 4 === 0 ? '#0f9d6a' : '#4a5b6c'} toneMapped={false} />
           </mesh>
         ))}
       </group>
@@ -293,7 +293,7 @@ export function Office() {
       <group position={[-19.6, 0, 7.5]}>
         <mesh position={[0, 0.55, 0]}>
           <boxGeometry args={[0.45, 1.1, 0.45]} />
-          <meshStandardMaterial color="#111822" roughness={0.7} />
+          <meshStandardMaterial color="#eceff3" roughness={0.6} />
         </mesh>
         <mesh position={[0, 1.4, 0]}>
           <cylinderGeometry args={[0.22, 0.25, 0.6, 14]} />
@@ -312,23 +312,23 @@ export function Office() {
       {/* glass partition behind execution island */}
       <mesh position={[0, 1.6, 14]}>
         <boxGeometry args={[30, 3.2, 0.06]} />
-        <meshPhysicalMaterial color="#9fd8ff" transparent opacity={0.06} roughness={0.08} metalness={0} transmission={0.6} />
+        <meshPhysicalMaterial color="#cfe6f7" transparent opacity={0.14} roughness={0.05} metalness={0} transmission={0.75} />
       </mesh>
 
       {/* printer / credenza */}
       <group position={[18.5, 0, 1]}>
         <mesh position={[0, 0.45, 0]}>
           <boxGeometry args={[1.6, 0.9, 0.8]} />
-          <meshStandardMaterial color="#0e131b" roughness={0.8} />
+          <meshStandardMaterial color="#e6e9ee" roughness={0.65} />
         </mesh>
         <mesh position={[0, 0.95, 0]}>
           <boxGeometry args={[1.2, 0.2, 0.7]} />
-          <meshStandardMaterial color="#141a23" roughness={0.6} />
+          <meshStandardMaterial color="#cfd5dd" roughness={0.5} />
         </mesh>
       </group>
 
       {/* floor branding */}
-      <Text position={[0, 0.02, 13.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.72} letterSpacing={0.5} color="#111b26" anchorX="center">
+      <Text position={[0, 0.02, 13.6]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.72} letterSpacing={0.5} color="#9fa9b5" anchorX="center">
         AXE CAPITAL
       </Text>
     </group>

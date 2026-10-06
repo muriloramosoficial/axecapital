@@ -14,6 +14,28 @@ import type {
   SimConfig,
 } from '../types';
 
+export type HudMode = 'full' | 'broadcast' | 'clean';
+
+const HUD_MODES: HudMode[] = ['full', 'broadcast', 'clean'];
+
+function readLS<T>(key: string, fallback: T, parse: (raw: string) => T | null): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    const v = parse(raw);
+    return v == null ? fallback : v;
+  } catch {
+    return fallback;
+  }
+}
+const writeLS = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+};
+
 export interface FocusTarget {
   deskId: string;
   agentId: string;
@@ -49,6 +71,9 @@ interface State {
   focus: FocusTarget | null;
   autoCamera: boolean;
   tvEnabled: boolean;
+  /** 'full' = todos os painéis · 'broadcast' = só HUD + ticker · 'clean' = só o escritório */
+  hudMode: HudMode;
+  uiScale: number;
   selectedAgentId: string | null;
   ambient: AmbientPing[];
   flash: { deskId: string; tone: string; at: number } | null;
@@ -56,6 +81,9 @@ interface State {
 
   setAutoCamera: (v: boolean) => void;
   setTv: (v: boolean) => void;
+  setHudMode: (v: HudMode) => void;
+  cycleHud: () => void;
+  setUiScale: (v: number) => void;
   select: (id: string | null) => void;
   focusDesk: (deskId: string, agentId: string, label: string) => void;
   applySnapshot: (s: any) => void;
@@ -93,6 +121,11 @@ export const useStore = create<State>((set, get) => ({
   focus: null,
   autoCamera: true,
   tvEnabled: true,
+  hudMode: readLS<HudMode>('axe.hudMode', 'full', (r) => (HUD_MODES.includes(r as HudMode) ? (r as HudMode) : null)),
+  uiScale: readLS<number>('axe.uiScale', 1, (r) => {
+    const n = Number(r);
+    return Number.isFinite(n) && n >= 0.7 && n <= 1.4 ? n : null;
+  }),
   selectedAgentId: null,
   ambient: [],
   flash: null,
@@ -100,6 +133,20 @@ export const useStore = create<State>((set, get) => ({
 
   setAutoCamera: (v) => set({ autoCamera: v }),
   setTv: (v) => set({ tvEnabled: v }),
+  setHudMode: (v) => {
+    writeLS('axe.hudMode', v);
+    set({ hudMode: v });
+  },
+  cycleHud: () => {
+    const next = HUD_MODES[(HUD_MODES.indexOf(get().hudMode) + 1) % HUD_MODES.length];
+    writeLS('axe.hudMode', next);
+    set({ hudMode: next });
+  },
+  setUiScale: (v) => {
+    const clamped = Math.min(1.4, Math.max(0.7, Number(v.toFixed(2))));
+    writeLS('axe.uiScale', String(clamped));
+    set({ uiScale: clamped });
+  },
   select: (id) => set({ selectedAgentId: id }),
   focusDesk: (deskId, agentId, label) => set({ focus: { deskId, agentId, label, at: Date.now() } }),
 

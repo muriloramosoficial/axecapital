@@ -6,7 +6,7 @@ export function NewsPanel() {
   const news = useStore((s) => s.news);
   const simNow = useStore((s) => s.simNow);
   return (
-    <div className="glass max-h-[26vh] overflow-y-auto rounded-lg p-3">
+    <div className="glass max-h-[24vh] shrink-0 overflow-y-auto rounded-lg p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="panel-title">News room · calendar</span>
         <span className="chip border-amber-400/30 text-amber-300">macro</span>
@@ -49,7 +49,7 @@ export function AgentInspector({ onOpenChart, onOpenBrain }: { onOpenChart: (sym
   const desk = desks.find((d) => d.id === agent.deskId);
 
   return (
-    <div className="glass rounded-lg p-3">
+    <div className="glass min-h-0 flex-1 overflow-y-auto rounded-lg p-3">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export function AgentInspector({ onOpenChart, onOpenBrain }: { onOpenChart: (sym
 export function MarketRail() {
   const prices = useStore((s) => s.prices);
   return (
-    <div className="glass flex items-center gap-4 overflow-x-auto rounded-lg px-3 py-1.5">
+    <div className="glass flex items-center gap-4 overflow-x-auto whitespace-nowrap rounded-lg px-3 py-1.5">
       {Object.values(prices).map((p) => (
         <div key={p.symbol} className="flex shrink-0 items-baseline gap-1.5">
           <span className="text-[10px] font-semibold tracking-wider text-slate-400">{p.symbol}</span>
